@@ -1,5 +1,4 @@
 # cube_renderer
 
-##mips
-
+## mips
 mars simulator v4.5
