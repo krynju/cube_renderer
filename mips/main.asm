@@ -1,20 +1,32 @@
 .eqv	CUBE_ROT_MATRIX_SIZE	36
 .eqv	VERTICES_SIZE		24
 .eqv	VECTOR_SIZE		12
-.eqv	CANVAS_DISTANCE		1
+
 .data
 	## cube rotation matrix 3x3 -> 9 floats -> 36 bytes 
 	cube_rotation_matrix:	.float	1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0
 	## cube position vector 3x1 -> 3 floats -> 12 bytes
-	cube_position_vector:	.float	1.0, 2.0, -4.0
+	cube_position_vector:	.float	3.0, 3.0, -10.0
 	## cube vertices array of vectors, each vector 12 bytes -> 2x12 -> 24 bytes 
 	## TEMPORARLY ONLY 2 VERTICES FOR TESTING PURPOSES	
 	vertices:		.float	1.0, 1.0, 1.0, -1.0, -1.0, -1.0
 	## array of pairs (x,y), vertices vectors projected onto plane, each pair 8 bytes -> 2x8 -> 16 bytes
 	projected_points:	.space 16
+	## canvas distance 
+	canvas_distance:	.float 1.0
+	
+	filename:		.asciiz  "heyo.bmp"
+	bitmap_header:		.half	0x4d42, 0x0036, 0x0003, 0x0000, 0x0000, 0x0036, 0x0000, 0x0028,
+					0x0000, 0x0100, 0x0000, 0x0100, 0x0000, 0x0001, 0x0018, 0x0000,
+					0x0000, 0x0000, 0x0003, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+					0x0000, 0x0000, 0x0000
+	## pixel space - 256*256*3byte 
+	bitmap			.space	196608
+	
 .text
 
 main:
+	#######################################################################################
 	## CUBE_MATRIX x VERTICES_VECTORS MULTIPLY	## REGISTERS USED IN ITERATION AND OFFSET
 	##	$t0 					## matrix row offset, start at sizeof(matrix)
 	##	$t1 					## position vector row offset, start at sizeof(pos_vector)
@@ -54,14 +66,13 @@ vertices_loop:
 	bnez	$t3, vertices_loop			## inner loopback - vertices iteration
 	bnez	$t0, matrix_loop			## outer loopback - matrix row iteration
 	
+	#######################################################################################
 	## PROJECTING VERTICES TO PLANE		## REGISTERS USED IN ITERATION AND OFFSET
-	##	$f2					## convert integer to fpu
+	##	$f2					## canvas distance 
 	##	$t2					## projected points iteration, starts with sizeof(projected_points)
 	##	$t3					## vertices iteration, starts with sizeof(vertices)
 	
-	li	$t0, CANVAS_DISTANCE			## load canvas distance into general register
-	mtc1	$t0, $f2				## move to an fpu register
-	cvt.s.w	$f2, $f2				## convert integer to fpu
+	lwc1	$f2, canvas_distance			## load canvas distance
 	li	$t2, 16					## projected points iteration, load with sizeof(projected_points)
 	li	$t3, 24					## vertices iteration, load with sizeof(vertices)
 projection_loop:
@@ -82,8 +93,28 @@ projection_loop:
 	swc1	$f1, projected_points+4($t2)		## store y
 	
 	bnez	$t3, projection_loop			## loopback projection iteration
+	
+	
+	#########################################################################
+	## File handling				## write header to file
+  	li	$v0, 13					## system call for open file
+	la	$a0, filename				## output file name
+	li	$a1, 1					## Open for writing (flags are 0: read, 1: write)
+	li	$a2, 0        				## mode is ignored
+	syscall            				## open a file (file descriptor returned in $v0)
+	move	$s6, $v0      				## save the file descriptor 
 
-
+	li	$v0, 15       				## system call for write to file
+	move 	$a0, $s6      				## file descriptor 
+	la   	$a1, bitmap_header  			## address of buffer from which to write
+	li   	$a2, 54     				## hardcoded buffer length
+	syscall            				## write to file
+	
+	## write pixels
+	
+	li   	$v0, 16       				## system call for close file
+	move 	$a0, $s6      				## file descriptor to close
+	syscall            				## close file
 
 	## temporary print of 2 vertices 
 	li	$t0, 24
