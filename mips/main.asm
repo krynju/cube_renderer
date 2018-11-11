@@ -4,17 +4,17 @@
 	## cube rotation matrix 3x3 -> 9 floats -> 36 bytes 
 	cube_rotation_matrix:	.float		1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0
 	## cube position vector 3x1 -> 3 floats -> 12 bytes
-	cube_position_vector:	.float		0.0, 0.0, -100.0
+	cube_position_vector:	.float		0.0, 0.0, -200.0
 	## cube vertices array of vectors, each vector 12 bytes -> 2x12 -> 24 bytes 
 	## TEMPORARLY ONLY 2 VERTICES FOR TESTING PURPOSES	
-	vertices:		.float		50.0, 50.0, 50.0, -50.0, 50.0, 50.0,
-						50.0, -50.0, 50.0, -50.0, -50.0, 50.0,
-						50.0, 50.0, -50.0, -50.0, 50.0, -50.0,
-						50.0, -50.0, -50.0, -50.0, -50.0, -50.0
+	vertices:		.float		75.0, 75.0, 75.0, -75.0, 75.0, 75.0,
+						75.0, -75.0, 75.0, -75.0, -75.0, 75.0,
+						75.0, 75.0, -75.0, -75.0, 75.0, -75.0,
+						75.0, -75.0, -75.0, -75.0, -75.0, -75.0
 	## array of pairs (x,y), vertices vectors projected onto plane, each pair 8 bytes -> 2x8 -> 16 bytes
 	projected_points:	.space		64
 	## canvas distance 
-	canvas_distance:	.float		10.0
+	canvas_distance:	.float		80.0
 	
 	filename:		.asciiz 	"mips_output.bmp"
 	bitmap_header:		.half		0x4d42, 0x0036, 0x0003, 0x0000, 0x0000, 0x0036, 0x0000, 0x0028,
@@ -99,7 +99,7 @@ projection_loop:
 #####################################################################################################################
 	## FILL PIXELMAP				## FILL THE BITMAP WITH SOME CONSTANT
 	li	$t0, 196608				## pixelmap iteration, load with sizeof(bitmap)
-	la	$t1, 0xCC				## constant to be written on all bytes
+	la	$t1, 0xFF				## constant to be written on all bytes
 fill_loop:
 	sub	$t0, $t0, 3				## decrement pixelmap iteration
 
@@ -108,6 +108,27 @@ fill_loop:
 	sb	$t1, bitmap+2($t0)			## blue
 
 	bnez	$t0, fill_loop				## loopback filling loop
+	
+#####################################################################################################################
+	## DRAW POINTS 
+	li	$t0, 64	
+point_drawing_loop:
+	sub	$t0, $t0, 8
+	lwc1	$f1, projected_points($t0)
+	lwc1	$f2, projected_points+4($t0)
+	cvt.w.s	$f1, $f1
+	cvt.w.s	$f2, $f2
+	mfc1	$t1, $f1
+	mfc1	$t2, $f2
+	add	$t1, $t1, 128
+	add	$t2, $t2, 128
+	mul	$t3, $t2, 256
+	add	$t3, $t3, $t1
+	mul	$t3, $t3, 3
+	sb	$zero, bitmap($t3)
+	sb	$zero, bitmap+1($t3)
+	sb	$zero, bitmap+2($t3)
+	bnez	$t0, point_drawing_loop
 	
 #####################################################################################################################
 	## FILE HANDLING				## write header to file, then fill the bitmap
