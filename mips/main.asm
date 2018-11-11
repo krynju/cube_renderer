@@ -5,23 +5,24 @@
 	cube_rotation_matrix:	.float		1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0
 	## cube position vector 3x1 -> 3 floats -> 12 bytes
 	cube_position_vector:	.float		0.0, 0.0, -200.0
-	## cube vertices array of vectors, each vector 12 bytes -> 2x12 -> 24 bytes 
-	## TEMPORARLY ONLY 2 VERTICES FOR TESTING PURPOSES	
+	## cube vertices array of vectors, each vector 12 bytes -> 8x12 -> 96 bytes 
 	vertices:		.float		75.0, 75.0, 75.0, -75.0, 75.0, 75.0,
 						75.0, -75.0, 75.0, -75.0, -75.0, 75.0,
 						75.0, 75.0, -75.0, -75.0, 75.0, -75.0,
 						75.0, -75.0, -75.0, -75.0, -75.0, -75.0
-	## array of pairs (x,y), vertices vectors projected onto plane, each pair 8 bytes -> 2x8 -> 16 bytes
+	## array of pairs (x,y), vertices vectors projected onto plane, each pair 8 bytes -> 8x8 -> 64 bytes
 	projected_points:	.space		64
 	## canvas distance 
 	canvas_distance:	.float		80.0
 	
 	filename:		.asciiz 	"mips_output.bmp"
+	
 	bitmap_header:		.half		0x4d42, 0x0036, 0x0003, 0x0000, 0x0000, 0x0036, 0x0000, 0x0028,
 						0x0000, 0x0100, 0x0000, 0x0100, 0x0000, 0x0001, 0x0018, 0x0000,
 						0x0000, 0x0000, 0x0003, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 						0x0000, 0x0000, 0x0000
 	## pixel space - 256*256*3byte 
+	.align 2
 	bitmap: 		.space		196608
 	
 .text
@@ -98,20 +99,17 @@ projection_loop:
 	
 #####################################################################################################################
 	## FILL PIXELMAP				## FILL THE BITMAP WITH SOME CONSTANT
-	li	$t0, 196608				## pixelmap iteration, load with sizeof(bitmap)
-	la	$t1, 0xFF				## constant to be written on all bytes
-fill_loop:
-	sub	$t0, $t0, 3				## decrement pixelmap iteration
-
-	sb	$t1, bitmap($t0)			## red
-	sb	$t1, bitmap+1($t0)			## green
-	sb	$t1, bitmap+2($t0)			## blue
-
-	bnez	$t0, fill_loop				## loopback filling loop
+	##li	$t0, 196608				## pixelmap iteration, load with sizeof(bitmap)
+	##li	$t1, 0xFFFFFFFF				## constant to be written on all bytes
+##fill_loop:
+	##sub	$t0, $t0, 4				## decrement pixelmap iteration
+	##sw	$t1, bitmap($t0)			## red
+	##bnez	$t0, fill_loop				## loopback filling loop
 	
 #####################################################################################################################
 	## DRAW POINTS 
 	li	$t0, 64	
+	li	$t4, 0xFF
 point_drawing_loop:
 	sub	$t0, $t0, 8
 	lwc1	$f1, projected_points($t0)
@@ -125,9 +123,9 @@ point_drawing_loop:
 	mul	$t3, $t2, 256
 	add	$t3, $t3, $t1
 	mul	$t3, $t3, 3
-	sb	$zero, bitmap($t3)
-	sb	$zero, bitmap+1($t3)
-	sb	$zero, bitmap+2($t3)
+	sb	$t4, bitmap($t3)			## red
+	sb	$t4, bitmap+1($t3)			## green
+	sb	$t4, bitmap+2($t3)			## blue
 	bnez	$t0, point_drawing_loop
 	
 #####################################################################################################################
