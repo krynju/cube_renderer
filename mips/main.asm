@@ -1,29 +1,54 @@
 .include "macros.asm"
 
+.eqv	BITMAP_SIZE 				786432
+.eqv	CANVAS_DISTANCE				80.0
+.eqv	CUBE_ROTATION_MATRIX_SIZE		36
+.eqv	CUBE_POSITION_VECTOR_SIZE		12
+.eqv	VERTICES_ARRAY_SIZE			96
+.eqv	PROJECTED_POINTS_SIZE			64
+
+
+
 .data
-	## cube rotation matrix 3x3 -> 9 floats -> 36 bytes 
-	cube_rotation_matrix:	.float		1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0
-	## cube position vector 3x1 -> 3 floats -> 12 bytes
-	cube_position_vector:	.float		0.0, 0.0, -200.0
-	## cube vertices array of vectors, each vector 12 bytes -> 8x12 -> 96 bytes 
-	vertices:		.float		75.0, 75.0, 75.0, -75.0, 75.0, 75.0,
-						75.0, -75.0, 75.0, -75.0, -75.0, 75.0,
-						75.0, 75.0, -75.0, -75.0, 75.0, -75.0,
-						75.0, -75.0, -75.0, -75.0, -75.0, -75.0
-	## array of pairs (x,y), vertices vectors projected onto plane, each pair 8 bytes -> 8x8 -> 64 bytes
-	projected_points:	.space		64
-	## canvas distance 
-	canvas_distance:	.float		80.0
+	## cube rotation matrix 		36 bytes = 3x3 bytes
+	cube_rotation:		.float		1.0, 0.0, 0.0, 
+						0.0, 1.0, 0.0, 
+						0.0, 0.0, 1.0
+			
+	## cube position vector 		12 bytes = 3x4 bytes
+	cube_position:		.float		0.0, 
+						100.0, 
+						-200.0
 	
+	## array of vertex vectors 		96 bytes = 8x12 bytes 
+	vertices:		.float		75.0, 	75.0, 	75.0, 		
+						75.0, 	-75.0, 	75.0, 		
+						-75.0, 	75.0, 	75.0,
+						-75.0, 	-75.0, 	75.0,
+						75.0, 	75.0, 	-75.0, 		
+						75.0, 	-75.0, 	-75.0, 		
+						-75.0, 	75.0, 	-75.0,
+						-75.0, 	-75.0, 	-75.0
+						
+	## array of projected vertices onto the canvas, contains a pair of x and y cords (float) for every vertex
+	##				 	bytes = 8x8 bytes
+	projected_points:	.space		PROJECTED_POINTS_SIZE
+	
+	## canvas distance 
+	canvas_distance:	.float		CANVAS_DISTANCE
+	
+	## output filename 
 	filename:		.asciiz 	"mips_output.bmp"
 	
-	bitmap_header:		.half		0x4d42, 0x0036, 0x0003, 0x0000, 0x0000, 0x0036, 0x0000, 0x0028,
-						0x0000, 0x0100, 0x0000, 0x0100, 0x0000, 0x0001, 0x0018, 0x0000,
-						0x0000, 0x0000, 0x0003, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-						0x0000, 0x0000, 0x0000
-	## pixel space - 256*256*3byte 
-	.align 2
-	bitmap: 		.space		196608
+	## 512x512 basic 24-bit bitmap header
+	bitmap_header:		.half		0x4d42, 0x0036, 0x000c, 0x0000, 0x0000, 0x0036, 0x0000, 0x0028,
+ 						0x0000, 0x0200, 0x0000, 0x0200, 0x0000, 0x0001, 0x0018, 0x0000,
+ 						0x0000, 0x0000, 0x000c, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+ 						0x0000, 0x0000, 0x0000
+	## pixel space - 512x512x3 bytes
+				.align 2
+	bitmap: 		.space		BITMAP_SIZE ## 786432
+	float1:			.float		1.0
 	
 .text
 
@@ -35,18 +60,18 @@ main:
 	##	$t2					## currently calculated element offset	
 	##	$t3					## vertices iteration, starts at sizeof(vertices)
 	
-	li	$t0, 36					## matrix row offset, load with sizeof(matrix)
-	li	$t1, 12					## position vector row offset, load with sizeof(pos_vector)
+	li	$t0, CUBE_ROTATION_MATRIX_SIZE #32	## matrix row offset, load with sizeof(matrix)
+	li	$t1, CUBE_POSITION_VECTOR_SIZE #12	## position vector row offset, load with sizeof(pos_vector)
 matrix_loop:
 	sub	$t0, $t0, 12				## decrement matrix offset
 	sub	$t1, $t1, 4				## decrement pos_vector offset
 	
-	lwc1	$f2, cube_rotation_matrix($t0)		## load matrix row 
-	lwc1	$f3, cube_rotation_matrix+4($t0)
-	lwc1	$f4, cube_rotation_matrix+8($t0)
-	lwc1	$f5, cube_position_vector($t1)		## load position vector element
+	lwc1	$f2, cube_rotation($t0)		## load matrix row 
+	lwc1	$f3, cube_rotation+4($t0)
+	lwc1	$f4, cube_rotation+8($t0)
+	lwc1	$f5, cube_position($t1)		## load position vector element
 	
-	li	$t3, 96					## vertices iteration, load with sizeof(vertices)
+	li	$t3, VERTICES_ARRAY_SIZE		## vertices iteration, load with sizeof(vertices)
 vertices_loop:
 	sub	$t3, $t3, 12				## decrement the vertices offset
 	add	$t2, $t3, $t1				## calculate the current element offset
@@ -75,8 +100,8 @@ vertices_loop:
 	##	$t3					## vertices iteration, starts with sizeof(vertices)
 	
 	lwc1	$f2, canvas_distance			## load canvas distance
-	li	$t2, 64					## projected points iteration, load with sizeof(projected_points)
-	li	$t3, 96					## vertices iteration, load with sizeof(vertices)
+	li	$t2, PROJECTED_POINTS_SIZE #64		## projected points iteration, load with sizeof(projected_points)
+	li	$t3, VERTICES_ARRAY_SIZE   #96		## vertices iteration, load with sizeof(vertices)
 projection_loop:
 	sub	$t2, $t2, 8				## decrement the projected_points offset
 	sub	$t3, $t3, 12				## decrement the vertices offset
@@ -108,7 +133,8 @@ projection_loop:
 	
 #####################################################################################################################
 	## DRAW POINTS 
-	li	$t0, 64	
+	#todo add comments
+	li	$t0, PROJECTED_POINTS_SIZE #64	
 	li	$t4, 0xFF
 point_drawing_loop:
 	sub	$t0, $t0, 8
@@ -118,15 +144,66 @@ point_drawing_loop:
 	cvt.w.s	$f2, $f2
 	mfc1	$t1, $f1
 	mfc1	$t2, $f2
-	add	$t1, $t1, 128
-	add	$t2, $t2, 128
-	mul	$t3, $t2, 256
+	add	$t1, $t1, 256
+	add	$t2, $t2, 256
+	mul	$t3, $t2, 512		##todo change to shift left
 	add	$t3, $t3, $t1
-	mul	$t3, $t3, 3
+	mul	$t3, $t3, 3		## todo maybe change to shift +add
 	sb	$t4, bitmap($t3)			## red
 	sb	$t4, bitmap+1($t3)			## green
 	sb	$t4, bitmap+2($t3)			## blue
 	bnez	$t0, point_drawing_loop
+	
+#####################################################################################################################
+	## DRAW LINE TEST
+	li	$t0, PROJECTED_POINTS_SIZE #64	
+	li	$t4, 0xFF
+
+	sub	$t0, $t0, 8
+	lwc1	$f3, projected_points($t0)
+	lwc1	$f4, projected_points+4($t0)
+	sub	$t0, $t0, 24
+	lwc1	$f5, projected_points($t0)
+	lwc1	$f6, projected_points+4($t0)
+	
+	sub.s	$f7, $f5, $f3	#x2-x1
+	sub.d	$f8, $f6, $f4  #y2-y1
+	
+	div.s	$f30,$f8, $f7 	#a
+	mul.s  $f31, $f30, $f3
+	neg.s	$f31,$f31
+	add.s	$f31,$f31,$f4	#b
+	#y=ax+b
+	
+	mov.s	$f1, $f3
+	
+	li $t0, 50
+	lwc1 $f12, float1
+	mov.s $f1, $f3
+line_drawing_loop:
+	#color pixel at ($f1, $f2)
+	sub $t0, $t0, 1
+	add.s $f1, $f1, $f12
+	mul.s $f2, $f1, $f30
+	add.s $f2, $f2, $f31
+
+	
+	cvt.w.s	$f21, $f1
+	cvt.w.s	$f22, $f2
+	mfc1	$t1, $f21
+	mfc1	$t2, $f22
+	add	$t1, $t1, 256
+	add	$t2, $t2, 256
+	mul	$t3, $t2, 512		##todo change to shift left
+	add	$t3, $t3, $t1
+	mul	$t3, $t3, 3		## todo maybe change to shift +add
+	
+	sb	$t4, bitmap($t3)			## red
+	sb	$t4, bitmap+1($t3)			## green
+	sb	$t4, bitmap+2($t3)			## blue
+	
+	bnez	$t0, line_drawing_loop
+	
 	
 #####################################################################################################################
 	## FILE HANDLING				## write header to file, then fill the bitmap
@@ -146,7 +223,7 @@ point_drawing_loop:
 	li	$v0, 15       				## system call for write to file
 	move 	$a0, $s6   				## file descriptor 
 	la   	$a1, bitmap				## address of buffer from which to write
-	li   	$a2, 196608    				## hardcoded buffer length
+	li   	$a2, BITMAP_SIZE ## 786432		## hardcoded buffer length
 	syscall            				## write to file
 	
 	li   	$v0, 16       				## system call for close file
@@ -156,8 +233,8 @@ point_drawing_loop:
 
 #####################################################################################################################
 	## PRINT RESULT					## PRINT PROJECTED POINTS AND VERTEX VECTORS
-	li	$t0, 64					## projected
-	li	$t1, 96					## vertices
+	li	$t0, PROJECTED_POINTS_SIZE #64		## projected
+	li	$t1, VERTICES_ARRAY_SIZE   #96		## vertices
 print_loop:
 	sub	$t0, $t0, 8
 	sub	$t1, $t1, 12
