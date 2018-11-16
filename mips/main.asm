@@ -6,7 +6,7 @@
 .eqv	CUBE_POSITION_VECTOR_SIZE		12
 .eqv	VERTICES_ARRAY_SIZE			96
 .eqv	PROJECTED_POINTS_SIZE			64
-
+.eqv	BITMAP_SIDE				256.0
 
 
 .data
@@ -49,6 +49,7 @@
 				.align 2
 	bitmap: 		.space		BITMAP_SIZE ## 786432
 	float1:			.float		1.0
+	bitmap_side:		.float		BITMAP_SIDE
 	
 .text
 
@@ -116,6 +117,10 @@ projection_loop:
 	mul.s	$f0, $f6, $f3 				## x * (-distance/z)
 	mul.s	$f1, $f7, $f3				## y * (-distance/z)
 	
+	lwc1	$f8, bitmap_side
+	add.s	$f0,$f0,$f8
+	add.s	$f1,$f1,$f8
+		
 	swc1	$f0, projected_points($t2)		## store x
 	swc1	$f1, projected_points+4($t2)		## store y
 	
@@ -123,32 +128,23 @@ projection_loop:
 	
 	
 #####################################################################################################################
-	## FILL PIXELMAP				## FILL THE BITMAP WITH SOME CONSTANT
-	##li	$t0, 196608				## pixelmap iteration, load with sizeof(bitmap)
-	##li	$t1, 0xFFFFFFFF				## constant to be written on all bytes
-##fill_loop:
-	##sub	$t0, $t0, 4				## decrement pixelmap iteration
-	##sw	$t1, bitmap($t0)			## red
-	##bnez	$t0, fill_loop				## loopback filling loop
-	
-#####################################################################################################################
 	## DRAW POINTS 
 	#todo add comments
 	li	$t0, PROJECTED_POINTS_SIZE #64	
 	li	$t4, 0xFF
 point_drawing_loop:
-	sub	$t0, $t0, 8
+	subiu	$t0, $t0, 8
 	lwc1	$f1, projected_points($t0)
 	lwc1	$f2, projected_points+4($t0)
 	cvt.w.s	$f1, $f1
 	cvt.w.s	$f2, $f2
 	mfc1	$t1, $f1
 	mfc1	$t2, $f2
-	add	$t1, $t1, 256
-	add	$t2, $t2, 256
-	mul	$t3, $t2, 512		##todo change to shift left
+	##add	$t1, $t1, 256
+	##add	$t2, $t2, 256
+	sll	$t3, $t2, 9
 	add	$t3, $t3, $t1
-	mul	$t3, $t3, 3		## todo maybe change to shift +add
+	mul	$t3, $t3, 3		
 	sb	$t4, bitmap($t3)			## red
 	sb	$t4, bitmap+1($t3)			## green
 	sb	$t4, bitmap+2($t3)			## blue
@@ -162,48 +158,54 @@ point_drawing_loop:
 	sub	$t0, $t0, 8
 	lwc1	$f3, projected_points($t0)
 	lwc1	$f4, projected_points+4($t0)
-	sub	$t0, $t0, 24
+	sub	$t0, $t0, 56
 	lwc1	$f5, projected_points($t0)
 	lwc1	$f6, projected_points+4($t0)
 	
-	sub.s	$f7, $f5, $f3	#x2-x1
-	sub.d	$f8, $f6, $f4  #y2-y1
+	##/temp
 	
-	div.s	$f30,$f8, $f7 	#a
-	mul.s  $f31, $f30, $f3
-	neg.s	$f31,$f31
-	add.s	$f31,$f31,$f4	#b
-	#y=ax+b
+	sub.s	$f7, $f5, $f3	#x2-x1 = dx
+	sub.s	$f8, $f6, $f4  #y2-y1 = dy
 	
-	mov.s	$f1, $f3
+	abs.s	$f9, $f7	## abs(dx)
+	abs.s	$f10, $f8	## abs(dy)
 	
-	li $t0, 50
-	lwc1 $f12, float1
-	mov.s $f1, $f3
+	mov.s	$f11, $f9	## step
+	c.lt.s 	$f10, $f9
+	bc1t 	set_step
+	mov.s	$f11, $f10	## step
+	set_step:
+	
+	div.s	$f7,$f7,$f11
+	div.s	$f8,$f8,$f11
+	
+	mov.s	$f1,$f3
+	mov.s	$f2,$f4
+	
+	li 	$t0, 100
+
 line_drawing_loop:
 	#color pixel at ($f1, $f2)
-	sub $t0, $t0, 1
-	add.s $f1, $f1, $f12
-	mul.s $f2, $f1, $f30
-	add.s $f2, $f2, $f31
+	sub 	$t0, $t0, 1
+	add.s 	$f1, $f1, $f7
+	add.s 	$f2, $f2, $f8
 
-	
+	## pixel at f1, f2 conv and draw from this point
 	cvt.w.s	$f21, $f1
 	cvt.w.s	$f22, $f2
 	mfc1	$t1, $f21
 	mfc1	$t2, $f22
-	add	$t1, $t1, 256
-	add	$t2, $t2, 256
-	mul	$t3, $t2, 512		##todo change to shift left
+	##add	$t1, $t1, 256
+	##add	$t2, $t2, 256
+	sll	$t3, $t2, 9
 	add	$t3, $t3, $t1
-	mul	$t3, $t3, 3		## todo maybe change to shift +add
+	mul	$t3, $t3, 3	
 	
 	sb	$t4, bitmap($t3)			## red
 	sb	$t4, bitmap+1($t3)			## green
 	sb	$t4, bitmap+2($t3)			## blue
 	
 	bnez	$t0, line_drawing_loop
-	
 	
 #####################################################################################################################
 	## FILE HANDLING				## write header to file, then fill the bitmap
