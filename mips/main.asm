@@ -20,16 +20,17 @@
 						50.0, 
 						-150.0
 	
-	## array of vertex vectors 		96 bytes = 8x12 bytes 
-	vertices:		.float		-75.0, 	-75.0, 	75.0,
-						-75.0, 	75.0, 	75.0,	
-						75.0, 	-75.0, 	75.0,
-						-75.0, 	75.0, 	-75.0,
-						75.0, 	75.0, 	-75.0,
-						75.0, 	75.0, 	75.0, 		
-						75.0, 	-75.0, 	-75.0, 		
-						-75.0, 	-75.0, 	-75.0
-						
+	## array of vertex vectors 		96 bytes = 8x12 bytes 	## LINE CONNECTIONS
+	vertices:		.float		-75.0, 	-75.0, 	75.0,	## v1 -> v2,v3,v4
+						-75.0, 	75.0, 	75.0,	## v2 -> v6,v7
+						-75.0, 	-75.0, 	-75.0,	## v3 -> v5,v7
+						75.0, 	-75.0, 	75.0,	## v4 -> v5,v6
+						75.0, 	75.0, 	-75.0,	## v8 -> v5,v6,v7
+						75.0, 	-75.0, 	-75.0, 	## v5
+						75.0, 	75.0, 	75.0, 	## v6
+						-75.0, 	75.0, 	-75.0	## v7
+							
+							
 	## array of projected vertices onto the canvas, contains a pair of x and y cords (float) for every vertex
 	##				 	bytes = 8x8 bytes
 	projected_points:	.space		PROJECTED_POINTS_SIZE
@@ -52,6 +53,8 @@
 	float0:			.float		0.0
 	bitmap_side:		.float		BITMAP_SIDE
 	
+	lines:			.space		192
+	
 .text
 
 main:
@@ -61,7 +64,7 @@ main:
 	##	$t1 					## position vector row offset, start at sizeof(pos_vector)
 	##	$t2					## currently calculated element offset	
 	##	$t3					## vertices iteration, starts at sizeof(vertices)
-	
+	seq	$t0,$t0,$t0
 	li	$t0, CUBE_ROTATION_MATRIX_SIZE #32	## matrix row offset, load with sizeof(matrix)
 	li	$t1, CUBE_POSITION_VECTOR_SIZE #12	## position vector row offset, load with sizeof(pos_vector)
 matrix_loop:
@@ -149,20 +152,81 @@ point_drawing_loop:
 	sb	$t4, bitmap+2($t3)			## blue
 	bnez	$t0, point_drawing_loop
 	
+########################################33
+	## generate lines array test
+	
+	li	$t1, 0	##lines iterator
+	
+	
+	li	$t2, 64
+generate_lines_test_outer:	
+	sub	$t2,$t2,32
+	add	$t0,$t2, 24
+	lwc1	$f0, projected_points($t2)	## v1 x
+	lwc1	$f1, projected_points+4($t2)	## v1 y
+generate_lines_test:
+	lwc1	$f2, projected_points($t0)
+	lwc1	$f3, projected_points+4($t0)
+	swc1	$f0, lines($t1)
+	swc1	$f1, lines+4($t1)
+	swc1	$f2, lines+8($t1)
+	swc1	$f3, lines+12($t1)
+	add	$t1,$t1,16
+	sub	$t0, $t0, 8
+	bne	$t0,$t2 , generate_lines_test
+	bnez	$t2, generate_lines_test_outer
+	
+	
+	li	$t0, 32 ##32
+	
+	skiperino2:
+	sub	$t0, $t0, 8
+	
+	li	$t2, 64	## 64
+
+	skiperino:
+	sub	$t2,$t2,8
+	
+	
+	
+	lwc1	$f0,projected_points($t0)
+	lwc1	$f1,projected_points+4($t0)
+	lwc1	$f2,projected_points($t2)
+	lwc1	$f3,projected_points+4($t2)
+	
+	swc1	$f0, lines($t1)
+	swc1	$f1, lines+4($t1)
+	swc1	$f2, lines+8($t1)
+	swc1	$f3, lines+12($t1)
+	
+	
+	sub	$t7, $t2, 32
+	beq	$t7,$t0, endyboy
+	add	$t1,$t1,16
+	endyboy:
+	bne	$t7, 8 , skiperino
+	bne	$t0, 8 , skiperino2
+	##li	$t2, 56
+	
+	
+	#if	56-32 == $t0 24
+	#skip
+	
+	
 #####################################################################################################################
 	## DRAW LINE TEST
-	li	$t0, PROJECTED_POINTS_SIZE #64		## projected points iteration, load with sizeof(projected_points)
+	li	$t0, 192 #64		## projected points iteration, load with sizeof(projected_points)
 	li	$t4, 0xFF				## register holding white color - temporary
 
 draw_line_outer_loop: ## write explaination
-	sub	$t0, $t0, 8				## temp code
-	li	$t6, 64
+	sub	$t0, $t0, 16				## temp code
+	##li	$t6, 4
 draw_line_inner_loop:	## write explaination
-	sub	$t6,$t6,8
-	lwc1	$f3, projected_points($t0)
-	lwc1	$f4, projected_points+4($t0)
-	lwc1	$f5, projected_points($t6)
-	lwc1	$f6, projected_points+4($t6)
+	##sub	$t6,$t6,8
+	lwc1	$f3, lines($t0)
+	lwc1	$f4, lines+4($t0)
+	lwc1	$f5, lines+8($t0)
+	lwc1	$f6, lines+12($t0)
 	
 	sub.s	$f7, $f5, $f3				## dx = x2-x1
 	sub.s	$f8, $f6, $f4  				## dy = y2-y1
@@ -204,7 +268,7 @@ line_drawing_loop:
 	c.lt.s 	$f0, $f11				## if step < i
 	bc1t 	line_drawing_loop
 	
-	bne	$t6,$t0, draw_line_inner_loop
+	##bne	$t6,$t0, draw_line_inner_loop
 	bnez	$t0, draw_line_outer_loop
 	
 	
@@ -232,38 +296,8 @@ line_drawing_loop:
 	li   	$v0, 16       				## system call for close file
 	move 	$a0, $s6      				## file descriptor to close
 	syscall            				## close file
-
-
-#####################################################################################################################
-	## PRINT RESULT					## PRINT PROJECTED POINTS AND VERTEX VECTORS
-	li	$t0, PROJECTED_POINTS_SIZE #64		## projected
-	li	$t1, VERTICES_ARRAY_SIZE   #96		## vertices
-print_loop:
-	sub	$t0, $t0, 8
-	sub	$t1, $t1, 12
-	lwc1	$f12, projected_points($t0)
-	li	$v0, 2
-	syscall	
-	print_tab
-	lwc1	$f12, projected_points+4($t0)
-	li	$v0, 2
-	syscall
-	print_tab
-	print_tab
-	lwc1	$f12, vertices($t0)
-	li	$v0, 2
-	syscall	
-	print_comma
-	print_tab
-	lwc1	$f12, vertices+4($t0)
-	li	$v0, 2
-	syscall	
-	print_tab
-	lwc1	$f12, vertices+8($t0)
-	li	$v0, 2
-	syscall		
-	print_newline
-	bnez	$t0, print_loop
+	
+	
 #####################################################################################################################
 	## EXIT
 exit:
