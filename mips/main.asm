@@ -16,9 +16,9 @@
 						0.0, 0.0, 1.0
 			
 	## cube position vector 		12 bytes = 3x4 bytes
-	cube_position:		.float		0.0, 
-						100.0, 
-						-200.0
+	cube_position:		.float		100.0, 
+						50.0, 
+						-150.0
 	
 	## array of vertex vectors 		96 bytes = 8x12 bytes 
 	vertices:		.float		-75.0, 	-75.0, 	75.0,
@@ -141,8 +141,6 @@ point_drawing_loop:
 	cvt.w.s	$f2, $f2
 	mfc1	$t1, $f1
 	mfc1	$t2, $f2
-	##add	$t1, $t1, 256
-	##add	$t2, $t2, 256
 	sll	$t3, $t2, 9
 	add	$t3, $t3, $t1
 	mul	$t3, $t3, 3		
@@ -157,14 +155,14 @@ point_drawing_loop:
 	li	$t4, 0xFF				## register holding white color - temporary
 
 draw_line_outer_loop: ## write explaination
-	sub	$t0, $t0, 32				## temp code
-	li	$t6, 24
+	sub	$t0, $t0, 8				## temp code
+	li	$t6, 64
 draw_line_inner_loop:	## write explaination
 	sub	$t6,$t6,8
 	lwc1	$f3, projected_points($t0)
 	lwc1	$f4, projected_points+4($t0)
-	lwc1	$f5, projected_points+8($t6)
-	lwc1	$f6, projected_points+12($t6)
+	lwc1	$f5, projected_points($t6)
+	lwc1	$f6, projected_points+4($t6)
 	
 	sub.s	$f7, $f5, $f3				## dx = x2-x1
 	sub.s	$f8, $f6, $f4  				## dy = y2-y1
@@ -205,6 +203,10 @@ line_drawing_loop:
 	add.s	$f0,$f0,$f27				## increment i
 	c.lt.s 	$f0, $f11				## if step < i
 	bc1t 	line_drawing_loop
+	
+	bne	$t6,$t0, draw_line_inner_loop
+	bnez	$t0, draw_line_outer_loop
+	
 	
 #####################################################################################################################
 	## FILE HANDLING				## write header to file, then fill the bitmap
