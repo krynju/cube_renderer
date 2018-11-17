@@ -1,7 +1,7 @@
 .include "macros.asm"
 
 .eqv	BITMAP_SIZE 				786432
-.eqv	CANVAS_DISTANCE				80.0
+.eqv	CANVAS_DISTANCE				75.0
 .eqv	CUBE_ROTATION_MATRIX_SIZE		36
 .eqv	CUBE_POSITION_VECTOR_SIZE		12
 .eqv	VERTICES_ARRAY_SIZE			96
@@ -21,14 +21,15 @@
 						-150.0
 	
 	## array of vertex vectors 		96 bytes = 8x12 bytes 	## LINE CONNECTIONS
-	vertices:		.float		-75.0, 	-75.0, 	75.0,	## v1 -> v2,v3,v4
-						-75.0, 	75.0, 	75.0,	## v2 -> v6,v7
-						-75.0, 	-75.0, 	-75.0,	## v3 -> v5,v7
-						75.0, 	-75.0, 	75.0,	## v4 -> v5,v6
-						75.0, 	75.0, 	-75.0,	## v8 -> v5,v6,v7
+	vertices:		.float		
+						-75.0, 	75.0, 	75.0,	## v1 -> v6,v7
+						-75.0, 	-75.0, 	-75.0,	## v2 -> v5,v7
+						75.0, 	-75.0, 	75.0,	## v3 -> v5,v6
+						-75.0, 	-75.0, 	75.0,	## v4 -> v1,v2,v3
 						75.0, 	-75.0, 	-75.0, 	## v5
 						75.0, 	75.0, 	75.0, 	## v6
-						-75.0, 	75.0, 	-75.0	## v7
+						-75.0, 	75.0, 	-75.0,	## v7
+						75.0, 	75.0, 	-75.0,	## v8 -> v5,v6,v7
 							
 							
 	## array of projected vertices onto the canvas, contains a pair of x and y cords (float) for every vertex
@@ -51,6 +52,7 @@
 	bitmap: 		.space		BITMAP_SIZE ## 786432
 	float1:			.float		1.0
 	float0:			.float		0.0
+	float2:			.float		3.0
 	bitmap_side:		.float		BITMAP_SIDE
 	
 	lines:			.space		192
@@ -64,7 +66,6 @@ main:
 	##	$t1 					## position vector row offset, start at sizeof(pos_vector)
 	##	$t2					## currently calculated element offset	
 	##	$t3					## vertices iteration, starts at sizeof(vertices)
-	seq	$t0,$t0,$t0
 	li	$t0, CUBE_ROTATION_MATRIX_SIZE #32	## matrix row offset, load with sizeof(matrix)
 	li	$t1, CUBE_POSITION_VECTOR_SIZE #12	## position vector row offset, load with sizeof(pos_vector)
 matrix_loop:
@@ -132,87 +133,85 @@ projection_loop:
 	
 	
 #####################################################################################################################
-	## DRAW POINTS 
-	#todo add comments
-	li	$t0, PROJECTED_POINTS_SIZE #64	
-	li	$t4, 0xFF
-point_drawing_loop:
-	subiu	$t0, $t0, 8
-	lwc1	$f1, projected_points($t0)
-	lwc1	$f2, projected_points+4($t0)
-	cvt.w.s	$f1, $f1
-	cvt.w.s	$f2, $f2
-	mfc1	$t1, $f1
-	mfc1	$t2, $f2
-	sll	$t3, $t2, 9
-	add	$t3, $t3, $t1
-	mul	$t3, $t3, 3		
-	sb	$t4, bitmap($t3)			## red
-	sb	$t4, bitmap+1($t3)			## green
-	sb	$t4, bitmap+2($t3)			## blue
-	bnez	$t0, point_drawing_loop
+	## DRAW POINTS - probably unnecessary
+#	li	$t0, PROJECTED_POINTS_SIZE #64	
+#	li	$t4, 0xFF
+#	point_drawing_loop:
+#	subiu	$t0, $t0, 8
+#	lwc1	$f1, projected_points($t0)
+#	lwc1	$f2, projected_points+4($t0)
+#	cvt.w.s	$f1, $f1
+#	cvt.w.s	$f2, $f2
+#	mfc1	$t1, $f1
+#	mfc1	$t2, $f2
+#	sll	$t3, $t2, 9
+#	add	$t3, $t3, $t1
+#	mul	$t3, $t3, 3		
+#	sb	$t4, bitmap+1($t3)			## green
+#	sb	$t4, bitmap+2($t3)			## blue
+#	bnez	$t0, point_drawing_loop
 	
-########################################33
-	## generate lines array test
+#####################################################################################################################
+	## GENERATING LINE PAIRS FOR FURTHER DRAW	##
+	##	$t0					## marker where to put a new line
+	##	$t1					## outer loop iterator
+	##	$t2					## inner loop iterator
+	##	$f0, lines($t0)				## source	x
+	##	$f1, lines+4($t0)			## source	y
+	##	$f2, lines+8($t0)			## dest	 	x
+	##	$f3, lines+12($t0)			## dest   	y
 	
-	li	$t1, 0	##lines iterator
+	li	$t0, 0					## load lines iterator with 0
 	
+	## 1ST PART
+	li	$t1, 64					## iterator through projected points
+generate_lines_part1_outer:				## what happens in 1st iter || what happens in 2nd iter
+	sub	$t1, $t1, 32				## analyze the space by half (v8 -> v5,v6,v7 || v4 -> v1,v2,v3)
+	add	$t2, $t1, 24				## add apropriate offset to grab v5,v6,v7 || v1,v2,v3
+	lwc1	$f0, projected_points+24($t1)		## load v8's x and y || v4's x and y
+	lwc1	$f1, projected_points+28($t1)
+generate_lines_part1_inner:
+	sub	$t2, $t2, 8				## offset to grab rightmost v
+	lwc1	$f2, projected_points($t2)		## load its x and y
+	lwc1	$f3, projected_points+4($t2)
+							## create a line info structure
+	swc1	$f0, lines($t0)				## source	x
+	swc1	$f1, lines+4($t0)			## source	y
+	swc1	$f2, lines+8($t0)			## dest	 	x
+	swc1	$f3, lines+12($t0)			## dest   	y
+	add	$t0, $t0, 16				## increment
 	
-	li	$t2, 64
-generate_lines_test_outer:	
-	sub	$t2,$t2,32
-	add	$t0,$t2, 24
-	lwc1	$f0, projected_points($t2)	## v1 x
-	lwc1	$f1, projected_points+4($t2)	## v1 y
-generate_lines_test:
-	lwc1	$f2, projected_points($t0)
-	lwc1	$f3, projected_points+4($t0)
-	swc1	$f0, lines($t1)
-	swc1	$f1, lines+4($t1)
-	swc1	$f2, lines+8($t1)
-	swc1	$f3, lines+12($t1)
-	add	$t1,$t1,16
-	sub	$t0, $t0, 8
-	bne	$t0,$t2 , generate_lines_test
-	bnez	$t2, generate_lines_test_outer
+	bne	$t2, $t1, generate_lines_part1_inner	## inner loop ends after iterating 3 times through v's
+	bnez	$t1, generate_lines_part1_outer	## outer loop ends after iterating 2 times through two halves
 	
+	## 2ND PART					## outer iteration -> first half, inner iteration -> second half
+	li	$t1, 24 				## load the outer iterator with the right offset
+generate_lines_part2_outer:	
+	sub	$t1, $t1, 8				## decrement the outer iterator
+	lwc1	$f0, projected_points($t1)		## loading sources x and y
+	lwc1	$f1, projected_points+4($t1)
+	li	$t2, 56					## load the inner iterator with the right offset
+generate_lines_part2_inner:
+	sub	$t2, $t2, 8				## decrement the inner iterator
 	
-	li	$t0, 32 ##32
+	sub	$t3, $t2, 32				## $t3 just for checking the expression
+	beq	$t3, $t1, skip_same_index_in_2nd_half	## checking if the indexes match in both halves
+							## according to the algorithm and vertex placement
 	
-	skiperino2:
-	sub	$t0, $t0, 8
+	lwc1	$f2, projected_points($t2)		## loading destinations x and y
+	lwc1	$f3, projected_points+4($t2)
 	
-	li	$t2, 64	## 64
+							## create a line info structure
+	swc1	$f0, lines($t0)				## source	x
+	swc1	$f1, lines+4($t0)			## source	y
+	swc1	$f2, lines+8($t0)			## dest	 	x
+	swc1	$f3, lines+12($t0)			## dest   	y
+	add	$t0, $t0, 16				## increment
+	
+	skip_same_index_in_2nd_half:
+	bne	$t2, 32 , generate_lines_part2_inner
+	bnez	$t1, generate_lines_part2_outer
 
-	skiperino:
-	sub	$t2,$t2,8
-	
-	
-	
-	lwc1	$f0,projected_points($t0)
-	lwc1	$f1,projected_points+4($t0)
-	lwc1	$f2,projected_points($t2)
-	lwc1	$f3,projected_points+4($t2)
-	
-	swc1	$f0, lines($t1)
-	swc1	$f1, lines+4($t1)
-	swc1	$f2, lines+8($t1)
-	swc1	$f3, lines+12($t1)
-	
-	
-	sub	$t7, $t2, 32
-	beq	$t7,$t0, endyboy
-	add	$t1,$t1,16
-	endyboy:
-	bne	$t7, 8 , skiperino
-	bne	$t0, 8 , skiperino2
-	##li	$t2, 56
-	
-	
-	#if	56-32 == $t0 24
-	#skip
-	
-	
 #####################################################################################################################
 	## DRAW LINE TEST
 	li	$t0, 192 #64		## projected points iteration, load with sizeof(projected_points)
@@ -220,9 +219,7 @@ generate_lines_test:
 
 draw_line_outer_loop: ## write explaination
 	sub	$t0, $t0, 16				## temp code
-	##li	$t6, 4
 draw_line_inner_loop:	## write explaination
-	##sub	$t6,$t6,8
 	lwc1	$f3, lines($t0)
 	lwc1	$f4, lines+4($t0)
 	lwc1	$f5, lines+8($t0)
@@ -242,11 +239,17 @@ draw_line_inner_loop:	## write explaination
 	div.s	$f7,$f7,$f11				## dx = dx/step
 	div.s	$f8,$f8,$f11				## dy = dy/step
 	
+	
 	mov.s	$f1,$f3					## x = x1, save starting point
 	mov.s	$f2,$f4					## y = y1, save starting point
 	
 	lwc1	$f0, float0
 	lwc1	$f27,float1
+	lwc1	$f28,float2
+	
+	div.s	$f7,$f7,$f28				## dx = dx/2
+	div.s	$f8,$f8,$f28				## dy = dy/2
+	div.s	$f27,$f27,$f28
 line_drawing_loop:
 	add.s 	$f1, $f1, $f7				## x = x + dx
 	add.s 	$f2, $f2, $f8				## y = y + dy
