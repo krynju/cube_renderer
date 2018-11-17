@@ -21,13 +21,13 @@
 						-200.0
 	
 	## array of vertex vectors 		96 bytes = 8x12 bytes 
-	vertices:		.float		75.0, 	75.0, 	75.0, 		
-						75.0, 	-75.0, 	75.0, 		
-						-75.0, 	75.0, 	75.0,
-						-75.0, 	-75.0, 	75.0,
-						75.0, 	75.0, 	-75.0, 		
-						75.0, 	-75.0, 	-75.0, 		
+	vertices:		.float		-75.0, 	-75.0, 	75.0,
+						-75.0, 	75.0, 	75.0,	
+						75.0, 	-75.0, 	75.0,
 						-75.0, 	75.0, 	-75.0,
+						75.0, 	75.0, 	-75.0,
+						75.0, 	75.0, 	75.0, 		
+						75.0, 	-75.0, 	-75.0, 		
 						-75.0, 	-75.0, 	-75.0
 						
 	## array of projected vertices onto the canvas, contains a pair of x and y cords (float) for every vertex
@@ -49,6 +49,7 @@
 				.align 2
 	bitmap: 		.space		BITMAP_SIZE ## 786432
 	float1:			.float		1.0
+	float0:			.float		0.0
 	bitmap_side:		.float		BITMAP_SIDE
 	
 .text
@@ -152,60 +153,58 @@ point_drawing_loop:
 	
 #####################################################################################################################
 	## DRAW LINE TEST
-	li	$t0, PROJECTED_POINTS_SIZE #64	
-	li	$t4, 0xFF
+	li	$t0, PROJECTED_POINTS_SIZE #64		## projected points iteration, load with sizeof(projected_points)
+	li	$t4, 0xFF				## register holding white color - temporary
 
-	sub	$t0, $t0, 8
+draw_line_outer_loop: ## write explaination
+	sub	$t0, $t0, 32				## temp code
+	li	$t6, 24
+draw_line_inner_loop:	## write explaination
+	sub	$t6,$t6,8
 	lwc1	$f3, projected_points($t0)
 	lwc1	$f4, projected_points+4($t0)
-	sub	$t0, $t0, 56
-	lwc1	$f5, projected_points($t0)
-	lwc1	$f6, projected_points+4($t0)
+	lwc1	$f5, projected_points+8($t6)
+	lwc1	$f6, projected_points+12($t6)
 	
-	##/temp
+	sub.s	$f7, $f5, $f3				## dx = x2-x1
+	sub.s	$f8, $f6, $f4  				## dy = y2-y1
+	abs.s	$f9, $f7				## abs(dx)
+	abs.s	$f10, $f8				## abs(dy)
 	
-	sub.s	$f7, $f5, $f3	#x2-x1 = dx
-	sub.s	$f8, $f6, $f4  #y2-y1 = dy
+	mov.s	$f11, $f9				## (abs(dx) >= abs(dy)) -> step = abs(dx);
+	c.lt.s 	$f10, $f9				## if(abs(dy) < abs(dx) -> 
+	bc1t 	if_step_set				## \/
+	mov.s	$f11, $f10				## -> step = abs(dy)
+	if_step_set:
 	
-	abs.s	$f9, $f7	## abs(dx)
-	abs.s	$f10, $f8	## abs(dy)
+	div.s	$f7,$f7,$f11				## dx = dx/step
+	div.s	$f8,$f8,$f11				## dy = dy/step
 	
-	mov.s	$f11, $f9	## step
-	c.lt.s 	$f10, $f9
-	bc1t 	set_step
-	mov.s	$f11, $f10	## step
-	set_step:
+	mov.s	$f1,$f3					## x = x1, save starting point
+	mov.s	$f2,$f4					## y = y1, save starting point
 	
-	div.s	$f7,$f7,$f11
-	div.s	$f8,$f8,$f11
-	
-	mov.s	$f1,$f3
-	mov.s	$f2,$f4
-	
-	li 	$t0, 100
-
+	lwc1	$f0, float0
+	lwc1	$f27,float1
 line_drawing_loop:
-	#color pixel at ($f1, $f2)
-	sub 	$t0, $t0, 1
-	add.s 	$f1, $f1, $f7
-	add.s 	$f2, $f2, $f8
+	add.s 	$f1, $f1, $f7				## x = x + dx
+	add.s 	$f2, $f2, $f8				## y = y + dy
 
-	## pixel at f1, f2 conv and draw from this point
-	cvt.w.s	$f21, $f1
-	cvt.w.s	$f22, $f2
-	mfc1	$t1, $f21
-	mfc1	$t2, $f22
-	##add	$t1, $t1, 256
-	##add	$t2, $t2, 256
-	sll	$t3, $t2, 9
-	add	$t3, $t3, $t1
-	mul	$t3, $t3, 3	
+	cvt.w.s	$f21, $f1				## convert x float to integer
+	cvt.w.s	$f22, $f2				## convert y float to integer
+	mfc1	$t1, $f21				## move converted x to general register
+	mfc1	$t2, $f22				## move converted y to general register
+
+	sll	$t3, $t2, 9				## y = y * 512
+	add	$t3, $t3, $t1				## bitmap pixel offset = x + y
+	mul	$t3, $t3, 3				## bitmap byte offset	= bitmap pixel offset * 3
 	
-	sb	$t4, bitmap($t3)			## red
-	sb	$t4, bitmap+1($t3)			## green
-	sb	$t4, bitmap+2($t3)			## blue
+	sb	$t4, bitmap($t3)			## fill red 
+	sb	$t4, bitmap+1($t3)			## fill green
+	sb	$t4, bitmap+2($t3)			## fill blue
 	
-	bnez	$t0, line_drawing_loop
+	add.s	$f0,$f0,$f27				## increment i
+	c.lt.s 	$f0, $f11				## if step < i
+	bc1t 	line_drawing_loop
 	
 #####################################################################################################################
 	## FILE HANDLING				## write header to file, then fill the bitmap
