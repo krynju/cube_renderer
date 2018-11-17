@@ -52,7 +52,7 @@
 	bitmap: 		.space		BITMAP_SIZE ## 786432
 	float1:			.float		1.0
 	float0:			.float		0.0
-	float2:			.float		3.0
+	float2:			.float		2.0
 	bitmap_side:		.float		BITMAP_SIDE
 	
 	lines:			.space		192
@@ -66,6 +66,13 @@ main:
 	##	$t1 					## position vector row offset, start at sizeof(pos_vector)
 	##	$t2					## currently calculated element offset	
 	##	$t3					## vertices iteration, starts at sizeof(vertices)
+	##	$f0					## accumulator used in calcs
+	##	$f1					## accumulator used in calcs
+	##	$f2					## mx1	rot matrix
+	##	$f3					## mx2	rot matrix
+	##	$f4					## mx3	rot matrix
+	##	$f5					## px 	position vector
+	
 	li	$t0, CUBE_ROTATION_MATRIX_SIZE #32	## matrix row offset, load with sizeof(matrix)
 	li	$t1, CUBE_POSITION_VECTOR_SIZE #12	## position vector row offset, load with sizeof(pos_vector)
 matrix_loop:
@@ -101,70 +108,57 @@ vertices_loop:
 	
 #####################################################################################################################
 	## PROJECTING VERTICES TO PLANE		## REGISTERS USED IN ITERATION AND OFFSET
-	##	$f2					## canvas distance 
-	##	$t2					## projected points iteration, starts with sizeof(projected_points)
-	##	$t3					## vertices iteration, starts with sizeof(vertices)
+	##	$t0					## projected points iteration, starts with sizeof(projected_points)
+	##	$t1					## vertices iteration, starts with sizeof(vertices)
+	##	$f0					## x vertex vector
+	##	$f1					## y vertex vector
+	##	$f2					## z vertex vector
+	##	$f3					## -distance/z
+	##	$f4					## canvas distance 
+	##	$f5					## load half of bitmap side size
 	
-	lwc1	$f2, canvas_distance			## load canvas distance
-	li	$t2, PROJECTED_POINTS_SIZE #64		## projected points iteration, load with sizeof(projected_points)
-	li	$t3, VERTICES_ARRAY_SIZE   #96		## vertices iteration, load with sizeof(vertices)
+	
+	lwc1	$f4, canvas_distance			## load canvas distance
+	lwc1	$f5, bitmap_side			## load half of bitmap side size
+	li	$t0, PROJECTED_POINTS_SIZE #64		## projected points iteration, load with sizeof(projected_points)
+	li	$t1, VERTICES_ARRAY_SIZE   #96		## vertices iteration, load with sizeof(vertices)
+	
 projection_loop:
-	sub	$t2, $t2, 8				## decrement the projected_points offset
-	sub	$t3, $t3, 12				## decrement the vertices offset
+	sub	$t0, $t0, 8				## decrement the projected_points offset
+	sub	$t1, $t1, 12				## decrement the vertices offset
 	
-	lwc1	$f6, vertices($t3)			## load vertex vector
-	lwc1	$f7, vertices+4($t3)
-	lwc1	$f8, vertices+8($t3)
+	lwc1	$f0, vertices($t1)			## x vertex vector
+	lwc1	$f1, vertices+4($t1)			## y vertex vector
+	lwc1	$f2, vertices+8($t1)			## z vertex vector	
 	
-	neg.s	$f3, $f2				## -distance
-	div.s	$f3, $f3, $f8				## -distance/z
+	neg.s	$f3, $f4				## -distance
+	div.s	$f3, $f3, $f2				## -distance/z
 	
-	mul.s	$f0, $f6, $f3 				## x * (-distance/z)
-	mul.s	$f1, $f7, $f3				## y * (-distance/z)
+	mul.s	$f0, $f0, $f3 				## x * (-distance/z)
+	mul.s	$f1, $f1, $f3				## y * (-distance/z)
 	
-	lwc1	$f8, bitmap_side
-	add.s	$f0,$f0,$f8
-	add.s	$f1,$f1,$f8
+	add.s	$f0, $f0, $f5				## change 0,0 cords to bottom left
+	add.s	$f1, $f1, $f5
 		
-	swc1	$f0, projected_points($t2)		## store x
-	swc1	$f1, projected_points+4($t2)		## store y
+	swc1	$f0, projected_points($t0)		## store x
+	swc1	$f1, projected_points+4($t0)		## store y
 	
-	bnez	$t3, projection_loop			## loopback projection iteration
-	
-	
-#####################################################################################################################
-	## DRAW POINTS - probably unnecessary
-#	li	$t0, PROJECTED_POINTS_SIZE #64	
-#	li	$t4, 0xFF
-#	point_drawing_loop:
-#	subiu	$t0, $t0, 8
-#	lwc1	$f1, projected_points($t0)
-#	lwc1	$f2, projected_points+4($t0)
-#	cvt.w.s	$f1, $f1
-#	cvt.w.s	$f2, $f2
-#	mfc1	$t1, $f1
-#	mfc1	$t2, $f2
-#	sll	$t3, $t2, 9
-#	add	$t3, $t3, $t1
-#	mul	$t3, $t3, 3		
-#	sb	$t4, bitmap+1($t3)			## green
-#	sb	$t4, bitmap+2($t3)			## blue
-#	bnez	$t0, point_drawing_loop
+	bnez	$t0, projection_loop			## loopback projection iteration
 	
 #####################################################################################################################
-	## GENERATING LINE PAIRS FOR FURTHER DRAW	##
+	## GENERATING LINE PAIRS FOR FURTHER DRAW	## REGISTERS USED
 	##	$t0					## marker where to put a new line
 	##	$t1					## outer loop iterator
 	##	$t2					## inner loop iterator
-	##	$f0, lines($t0)				## source	x
-	##	$f1, lines+4($t0)			## source	y
-	##	$f2, lines+8($t0)			## dest	 	x
-	##	$f3, lines+12($t0)			## dest   	y
+	##	$f0					## source	x
+	##	$f1					## source	y
+	##	$f2					## dest	 	x
+	##	$f3					## dest   	y
 	
 	li	$t0, 0					## load lines iterator with 0
 	
 	## 1ST PART
-	li	$t1, 64					## iterator through projected points
+	li	$t1, PROJECTED_POINTS_SIZE ##64	## iterator through projected points
 generate_lines_part1_outer:				## what happens in 1st iter || what happens in 2nd iter
 	sub	$t1, $t1, 32				## analyze the space by half (v8 -> v5,v6,v7 || v4 -> v1,v2,v3)
 	add	$t2, $t1, 24				## add apropriate offset to grab v5,v6,v7 || v1,v2,v3
@@ -213,67 +207,73 @@ generate_lines_part2_inner:
 	bnez	$t1, generate_lines_part2_outer
 
 #####################################################################################################################
-	## DRAW LINE TEST
-	li	$t0, 192 #64		## projected points iteration, load with sizeof(projected_points)
+	## DRAW GENERATED LINES			## USED REGISTERS
+	##	$t0					## lines iteration, load with sizeof(lines)
+	##	$f0					## iterator over vector length
+	##	$f1					## source x
+	##	$f2					## source y
+	##	$f3					## dest   x	
+	##	$f4					## dest   y
+	##	$f5					## dx = x2-x1
+	##	$f6 	 				## dy = y2-y1
+	##	$f7					## abs(dx)
+	##	$f8					## abs(dy)
+	##	$f9					## step
+	##	$f10					## 1.0 float for incrementing
+	
 	li	$t4, 0xFF				## register holding white color - temporary
-
+	
+	li	$t0, 192 				## lines iteration, load with sizeof(lines)
+	
 draw_line_outer_loop: ## write explaination
-	sub	$t0, $t0, 16				## temp code
-draw_line_inner_loop:	## write explaination
-	lwc1	$f3, lines($t0)
-	lwc1	$f4, lines+4($t0)
-	lwc1	$f5, lines+8($t0)
-	lwc1	$f6, lines+12($t0)
+	sub	$t0, $t0, 16				## decrement lines iterator
+							## load line structure
+	lwc1	$f1, lines($t0)				## source x
+	lwc1	$f2, lines+4($t0)			## source y
+	lwc1	$f3, lines+8($t0)			## dest   x	
+	lwc1	$f4, lines+12($t0)			## dest   y
 	
-	sub.s	$f7, $f5, $f3				## dx = x2-x1
-	sub.s	$f8, $f6, $f4  				## dy = y2-y1
-	abs.s	$f9, $f7				## abs(dx)
-	abs.s	$f10, $f8				## abs(dy)
+	sub.s	$f5, $f3, $f1				## dx = x2-x1
+	sub.s	$f6, $f4, $f2  				## dy = y2-y1
+	abs.s	$f7, $f5				## abs(dx)
+	abs.s	$f8, $f6				## abs(dy)
 	
-	mov.s	$f11, $f9				## (abs(dx) >= abs(dy)) -> step = abs(dx);
-	c.lt.s 	$f10, $f9				## if(abs(dy) < abs(dx) -> 
+	mov.s	$f9, $f7				## (abs(dx) >= abs(dy)) -> step = abs(dx);
+	c.lt.s 	$f8, $f7				## if(abs(dy) < abs(dx) -> 
 	bc1t 	if_step_set				## \/
-	mov.s	$f11, $f10				## -> step = abs(dy)
+	mov.s	$f9, $f8				## -> step = abs(dy)
 	if_step_set:
 	
-	div.s	$f7,$f7,$f11				## dx = dx/step
-	div.s	$f8,$f8,$f11				## dy = dy/step
+	div.s	$f5, $f5, $f9				## dx = dx/step
+	div.s	$f6, $f6, $f9				## dy = dy/step
 	
-	
-	mov.s	$f1,$f3					## x = x1, save starting point
-	mov.s	$f2,$f4					## y = y1, save starting point
-	
-	lwc1	$f0, float0
-	lwc1	$f27,float1
-	lwc1	$f28,float2
-	
-	div.s	$f7,$f7,$f28				## dx = dx/2
-	div.s	$f8,$f8,$f28				## dy = dy/2
-	div.s	$f27,$f27,$f28
-line_drawing_loop:
-	add.s 	$f1, $f1, $f7				## x = x + dx
-	add.s 	$f2, $f2, $f8				## y = y + dy
 
-	cvt.w.s	$f21, $f1				## convert x float to integer
-	cvt.w.s	$f22, $f2				## convert y float to integer
-	mfc1	$t1, $f21				## move converted x to general register
-	mfc1	$t2, $f22				## move converted y to general register
+	lwc1	$f0, float0				## iterator over vector length
+	lwc1	$f10, float1
+
+line_drawing_loop:
+	add.s 	$f1, $f1, $f5				## x = x + dx
+	add.s 	$f2, $f2, $f6				## y = y + dy
+	
+	cvt.w.s	$f3, $f1				## convert x float to integer	(reuse unused $f3)
+	cvt.w.s	$f4, $f2				## convert y float to integer	(reuse unused $f4)
+	mfc1	$t1, $f3				## move converted x to general register
+	mfc1	$t2, $f4				## move converted y to general register
 
 	sll	$t3, $t2, 9				## y = y * 512
 	add	$t3, $t3, $t1				## bitmap pixel offset = x + y
-	mul	$t3, $t3, 3				## bitmap byte offset	= bitmap pixel offset * 3
+	mul	$t3, $t3, 3				## bitmap byte offset = bitmap pixel offset * 3
+	
 	
 	sb	$t4, bitmap($t3)			## fill red 
 	sb	$t4, bitmap+1($t3)			## fill green
 	sb	$t4, bitmap+2($t3)			## fill blue
 	
-	add.s	$f0,$f0,$f27				## increment i
-	c.lt.s 	$f0, $f11				## if step < i
-	bc1t 	line_drawing_loop
+	add.s	$f0, $f0, $f10				## increment i
+	c.lt.s 	$f0, $f9			
+	bc1t 	line_drawing_loop			## while i < step
 	
-	##bne	$t6,$t0, draw_line_inner_loop
 	bnez	$t0, draw_line_outer_loop
-	
 	
 #####################################################################################################################
 	## FILE HANDLING				## write header to file, then fill the bitmap
@@ -299,7 +299,6 @@ line_drawing_loop:
 	li   	$v0, 16       				## system call for close file
 	move 	$a0, $s6      				## file descriptor to close
 	syscall            				## close file
-	
 	
 #####################################################################################################################
 	## EXIT
