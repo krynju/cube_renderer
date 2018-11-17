@@ -1,14 +1,17 @@
-#mips
+# mips
 
-##todo
+## todo
 
-- generating rotation matrices
+* generate rotation matrices
 
-- matrix multiplication
+* matrix multiplication ( 3 loop iterations, probably faster to do it flat)
 
-- add more vertices ( only 2 atm for testing purposes) -- done
+* add comments to drawing section
 
-- figure out mars bmp usage								-- done
-	* done adding header and assigned bitmap space
+* fix lines drawing one iteration too far
 
-- draw lines between projected points 
+* think up some clever sequence to draw the contour only (different colours maybe?)
+
+* add user input 
+
+* remove or fix the prints in the last section
