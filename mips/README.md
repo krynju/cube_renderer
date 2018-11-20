@@ -2,7 +2,13 @@
 
 ## todo
 
-* generate rotation matrices
+FIXED VERTICE TRANSFORM
+-- do something about static memory
+vertex transform loop can be changed into load full matrix to registers and not
+use another byte space to store the results
+
+
+* generate rotation matrices -done
 
 * matrix multiplication ( 3 loop iterations, probably faster to do it flat)
 

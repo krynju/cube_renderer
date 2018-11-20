@@ -10,26 +10,27 @@
 
 
 .data
-	## cube rotation matrix 		36 bytes = 3x3 bytes
+	## cube rotation matrix 		36 bytes = 3x3x4 bytes
 	cube_rotation:		.float		1.0, 0.0, 0.0, 
 						0.0, 1.0, 0.0, 
 						0.0, 0.0, 1.0
 			
 	## cube position vector 		12 bytes = 3x4 bytes
-	cube_position:		.float		100.0, 
+	cube_position:		.float		150.0, 
 						50.0, 
 						-150.0
 	
 	## array of vertex vectors 		96 bytes = 8x12 bytes 	## LINE CONNECTIONS
-	vertices:		.float		
-						-75.0, 	75.0, 	75.0,	## v1 -> v6,v7
+	vertices:		.float		-75.0, 	75.0, 	75.0,	## v1 -> v6,v7
 						-75.0, 	-75.0, 	-75.0,	## v2 -> v5,v7
 						75.0, 	-75.0, 	75.0,	## v3 -> v5,v6
-						-75.0, 	-75.0, 	75.0,	## v4 -> v1,v2,v3
+						-75.0, -75.0, 	75.0,	## v4 -> v1,v2,v3
 						75.0, 	-75.0, 	-75.0, 	## v5
 						75.0, 	75.0, 	75.0, 	## v6
 						-75.0, 	75.0, 	-75.0,	## v7
 						75.0, 	75.0, 	-75.0,	## v8 -> v5,v6,v7
+						
+	transformed_vertices:	.space 		96	##TODO DO SOMETHING WITH THIS
 							
 							
 	## array of projected vertices onto the canvas, contains a pair of x and y cords (float) for every vertex
@@ -57,9 +58,61 @@
 	
 	lines:			.space		192
 	
+	s_roll:			.float		0.0
+	c_roll:			.float		1.0
+	s_pitch:		.float		0.0
+	c_pitch:		.float		1.0
+	s_yaw:			.float		0.707
+	c_yaw:			.float		0.707
+	
 .text
 
 main:
+	lwc1	$f2, s_roll				## sin(x)
+	lwc1	$f3, c_roll				## cos(x)
+	lwc1	$f4, s_pitch				## sin(y)
+	lwc1	$f5, c_pitch				## cos(y)
+	lwc1	$f6, s_yaw				## sin(z)
+	lwc1	$f7, c_yaw				## cos(z)
+	
+	mul.s	$f0, $f5, $f7				## a11 = cos(y)*cos(z)
+	swc1	$f0, cube_rotation
+	mul.s	$f0, $f5, $f6				## a12 = cos(y)*sin(z)
+	swc1	$f0, cube_rotation+4
+	neg.s	$f0, $f4				## a13 = -sin(y)
+	swc1	$f0, cube_rotation+8
+	mul.s	$f0, $f7, $f2				## cos(z)*sin(x)
+	mul.s	$f0, $f0, $f4				## cos(z)*sin(x)*sin(y)
+	mul.s	$f1, $f3, $f6				## cos(x)*sin(z)
+	sub.s	$f0, $f0, $f1				## a21 = cos(z)*sin(x)*sin(y) - cos(x)*sin(z)
+	swc1	$f0, cube_rotation+12
+
+	mul.s	$f0, $f3, $f7
+	mul.s	$f1, $f2, $f4
+	mul.s	$f1, $f1, $f6
+	add.s 	$f0, $f0, $f1
+	swc1	$f0, cube_rotation+16
+	mul.s	$f0, $f5, $f2
+	swc1	$f0, cube_rotation+20
+	
+	mul.s	$f0, $f2, $f6
+	mul.s	$f1, $f3, $f7
+	mul.s	$f1, $f1, $f4
+	add.s 	$f0, $f0, $f1
+	swc1	$f0, cube_rotation+24
+	
+	mul.s	$f0, $f3, $f4			
+	mul.s	$f0, $f0, $f6				
+	mul.s	$f1, $f2, $f7			
+	sub.s	$f0, $f0, $f1	
+	swc1	$f0, cube_rotation+28
+	
+	mul.s	$f0, $f3, $f5
+	swc1	$f0, cube_rotation+32
+	
+		
+
+
 #####################################################################################################################
 	## CUBE_MATRIX x VERTICES_VECTORS MULTIPLY	## REGISTERS USED IN ITERATION AND OFFSET
 	##	$t0 					## matrix row offset, start at sizeof(matrix)
@@ -101,7 +154,7 @@ vertices_loop:
 	mul.s	$f1, $f4, $f8				## mxm3 * vertex_vector3
 	add.s	$f0, $f0, $f1
 	
-	swc1	$f0, vertices($t2)			## save the result
+	swc1	$f0, transformed_vertices($t2)		## save the result
 	
 	bnez	$t3, vertices_loop			## inner loopback - vertices iteration
 	bnez	$t0, matrix_loop			## outer loopback - matrix row iteration
@@ -127,9 +180,9 @@ projection_loop:
 	sub	$t0, $t0, 8				## decrement the projected_points offset
 	sub	$t1, $t1, 12				## decrement the vertices offset
 	
-	lwc1	$f0, vertices($t1)			## x vertex vector
-	lwc1	$f1, vertices+4($t1)			## y vertex vector
-	lwc1	$f2, vertices+8($t1)			## z vertex vector	
+	lwc1	$f0, transformed_vertices($t1)		## x vertex vector
+	lwc1	$f1, transformed_vertices+4($t1)	## y vertex vector
+	lwc1	$f2, transformed_vertices+8($t1)	## z vertex vector	
 	
 	neg.s	$f3, $f4				## -distance
 	div.s	$f3, $f3, $f2				## -distance/z
@@ -300,6 +353,37 @@ line_drawing_loop:
 	move 	$a0, $s6      				## file descriptor to close
 	syscall            				## close file
 	
+	
+#####################################################################################################################
+	## PRINT RESULT					## PRINT PROJECTED POINTS AND VERTEX VECTORS
+	li	$t0, PROJECTED_POINTS_SIZE #64		## projected
+	li	$t1, VERTICES_ARRAY_SIZE   #96		## vertices
+print_loop:
+	sub	$t0, $t0, 8
+	sub	$t1, $t1, 12
+	lwc1	$f12, projected_points($t0)
+	li	$v0, 2
+	syscall	
+	print_newline
+	lwc1	$f12, projected_points+4($t0)
+	li	$v0, 2
+	syscall
+	print_newline
+	print_tab
+	lwc1	$f12, vertices($t0)
+	li	$v0, 2
+	syscall	
+	print_comma
+	print_tab
+	lwc1	$f12, vertices+4($t0)
+	li	$v0, 2
+	syscall	
+	print_tab
+	lwc1	$f12, vertices+8($t0)
+	li	$v0, 2
+	syscall		
+	print_newline
+	bnez	$t0, print_loop	
 #####################################################################################################################
 	## EXIT
 exit:
