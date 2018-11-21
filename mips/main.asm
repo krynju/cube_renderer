@@ -1,7 +1,7 @@
 .include "macros.asm"
 
 .eqv	BITMAP_SIZE 				786432
-.eqv	CANVAS_DISTANCE				75.0
+.eqv	CANVAS_DISTANCE				100.0
 .eqv	CUBE_ROTATION_MATRIX_SIZE		36
 .eqv	CUBE_POSITION_VECTOR_SIZE		12
 .eqv	VERTICES_ARRAY_SIZE			96
@@ -16,9 +16,9 @@
 						0.0, 0.0, 1.0
 			
 	## cube position vector 		12 bytes = 3x4 bytes
-	cube_position:		.float		150.0, 
-						50.0, 
-						-150.0
+	cube_position:		.float		0.0, 
+						0.0, 
+						-300.0
 	
 	## array of vertex vectors 		96 bytes = 8x12 bytes 	## LINE CONNECTIONS
 	vertices:		.float		-75.0, 	75.0, 	75.0,	## v1 -> v6,v7
@@ -29,9 +29,7 @@
 						75.0, 	75.0, 	75.0, 	## v6
 						-75.0, 	75.0, 	-75.0,	## v7
 						75.0, 	75.0, 	-75.0,	## v8 -> v5,v6,v7
-						
-	transformed_vertices:	.space 		96	##TODO DO SOMETHING WITH THIS
-							
+												
 							
 	## array of projected vertices onto the canvas, contains a pair of x and y cords (float) for every vertex
 	##				 	bytes = 8x8 bytes
@@ -62,8 +60,8 @@
 	c_roll:			.float		1.0
 	s_pitch:		.float		0.0
 	c_pitch:		.float		1.0
-	s_yaw:			.float		0.707
-	c_yaw:			.float		0.707
+	s_yaw:			.float		0.0
+	c_yaw:			.float		1.0
 	
 .text
 
@@ -126,39 +124,59 @@ main:
 	##	$f4					## mx3	rot matrix
 	##	$f5					## px 	position vector
 	
-	li	$t0, CUBE_ROTATION_MATRIX_SIZE #32	## matrix row offset, load with sizeof(matrix)
-	li	$t1, CUBE_POSITION_VECTOR_SIZE #12	## position vector row offset, load with sizeof(pos_vector)
-matrix_loop:
-	sub	$t0, $t0, 12				## decrement matrix offset
-	sub	$t1, $t1, 4				## decrement pos_vector offset
+	lwc1	$f2, cube_rotation			## load matrix row 
+	lwc1	$f3, cube_rotation+4
+	lwc1	$f4, cube_rotation+8
+	lwc1	$f5, cube_rotation+12		## load matrix row 
+	lwc1	$f6, cube_rotation+16
+	lwc1	$f7, cube_rotation+20
+	lwc1	$f8, cube_rotation+24		## load matrix row 
+	lwc1	$f9, cube_rotation+28
+	lwc1	$f10, cube_rotation+32
 	
-	lwc1	$f2, cube_rotation($t0)		## load matrix row 
-	lwc1	$f3, cube_rotation+4($t0)
-	lwc1	$f4, cube_rotation+8($t0)
-	lwc1	$f5, cube_position($t1)		## load position vector element
+	lwc1	$f11, cube_position		## load position vector element
+	lwc1	$f12, cube_position+4
+	lwc1	$f13, cube_position+8
 	
-	li	$t3, VERTICES_ARRAY_SIZE		## vertices iteration, load with sizeof(vertices)
-vertices_loop:
-	sub	$t3, $t3, 12				## decrement the vertices offset
-	add	$t2, $t3, $t1				## calculate the current element offset
+	li		$t0, 96
+vertex_loop:
+	sub		$t0,$t0, 12
+	lwc1	$f14, vertices($t0)		## load position vector element
+	lwc1	$f15, vertices+4($t0)
+	lwc1	$f16, vertices+8($t0)
 	
-	lwc1	$f6, vertices($t3)			## load vertex vector
-	lwc1	$f7, vertices+4($t3)
-	lwc1	$f8, vertices+8($t3)
+	mov.s	$f1, $f11	#v1
+	mul.s	$f0, $f2, $f14
+	add.s 	$f1, $f1, $f0
+	mul.s	$f0, $f3, $f15
+	add.s 	$f1, $f1, $f0
+	mul.s	$f0, $f4, $f16
+	add.s 	$f1, $f1, $f0
 	
-	mov.s	$f0, $f5				## 0 + pos_vector * 1 
-	mul.s	$f1, $f2, $f6				## mxm1 * vertex_vector1
-	add.s	$f0, $f0, $f1
-	mul.s	$f1, $f3, $f7				## mxm2 * vertex_vector2
-	add.s	$f0, $f0, $f1
-	mul.s	$f1, $f4, $f8				## mxm3 * vertex_vector3
-	add.s	$f0, $f0, $f1
+	swc1	$f1, vertices($t0)
 	
-	swc1	$f0, transformed_vertices($t2)		## save the result
+	mov.s	$f1, $f12	#v2
+	mul.s	$f0, $f5, $f14
+	add.s 	$f1, $f1, $f0
+	mul.s	$f0, $f6, $f15
+	add.s 	$f1, $f1, $f0
+	mul.s	$f0, $f7, $f16
+	add.s 	$f1, $f1, $f0
 	
-	bnez	$t3, vertices_loop			## inner loopback - vertices iteration
-	bnez	$t0, matrix_loop			## outer loopback - matrix row iteration
+	swc1	$f1, vertices+4($t0)
 	
+	
+	mov.s	$f1, $f13	#v2
+	mul.s	$f0, $f8, $f14
+	add.s 	$f1, $f1, $f0
+	mul.s	$f0, $f9, $f15
+	add.s 	$f1, $f1, $f0
+	mul.s	$f0, $f10, $f16
+	add.s 	$f1, $f1, $f0
+	swc1	$f1, vertices+8($t0)
+	
+	
+	bnez	$t0, vertex_loop
 #####################################################################################################################
 	## PROJECTING VERTICES TO PLANE		## REGISTERS USED IN ITERATION AND OFFSET
 	##	$t0					## projected points iteration, starts with sizeof(projected_points)
@@ -180,9 +198,9 @@ projection_loop:
 	sub	$t0, $t0, 8				## decrement the projected_points offset
 	sub	$t1, $t1, 12				## decrement the vertices offset
 	
-	lwc1	$f0, transformed_vertices($t1)		## x vertex vector
-	lwc1	$f1, transformed_vertices+4($t1)	## y vertex vector
-	lwc1	$f2, transformed_vertices+8($t1)	## z vertex vector	
+	lwc1	$f0, vertices($t1)		## x vertex vector
+	lwc1	$f1, vertices+4($t1)	## y vertex vector
+	lwc1	$f2, vertices+8($t1)	## z vertex vector	
 	
 	neg.s	$f3, $f4				## -distance
 	div.s	$f3, $f3, $f2				## -distance/z
