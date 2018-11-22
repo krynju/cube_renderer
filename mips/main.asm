@@ -7,6 +7,7 @@
 .eqv	VERTICES_ARRAY_SIZE				96
 .eqv	PROJECTED_POINTS_SIZE				64
 .eqv	BITMAP_OFFSET_FLOAT				256.0
+.eqv	USER_INPUT					0
 
 
 .data
@@ -65,9 +66,64 @@
  							0x0000, 0x0000, 0x0000
 	## pixel space - 512x512x3 bytes
 	bitmap: 		.space			BITMAP_SIZE ## 786432
+	insert_roll_sine:	.asciiz			"Insert roll sine: "
+	insert_roll_cosine:	.asciiz			"Insert roll cosine: "
+	insert_pitch_sine:	.asciiz			"Insert pitch sine: "
+	insert_pitch_cosine:	.asciiz			"Insert pitch cosine: "
+	insert_yaw_sine:	.asciiz			"Insert yaw sine: "
+	insert_yaw_cosine:	.asciiz			"Insert yaw cosine: "
+	insert_cube_x:		.asciiz			"Insert cube x position: "
+	insert_cube_y:		.asciiz			"Insert cube y position: "
 		
 .text
 main:
+
+#####################################################################################################################
+	## USER INPUT
+	li	$t0, USER_INPUT
+	beqz	$t0, skip_user_input
+	
+	la	$a0, insert_roll_sine
+	print_string
+	read_float
+	swc1	$f0, rotation
+	
+	la	$a0, insert_roll_cosine
+	print_string
+	read_float
+	swc1	$f0, rotation+4
+	
+	la	$a0, insert_pitch_sine
+	print_string
+	read_float
+	swc1	$f0, rotation+8
+	
+	la	$a0, insert_pitch_cosine
+	print_string
+	read_float
+	swc1	$f0, rotation+12
+	
+	la	$a0, insert_yaw_sine
+	print_string
+	read_float
+	swc1	$f0, rotation+16
+	
+	la	$a0, insert_yaw_cosine
+	print_string
+	read_float
+	swc1	$f0, rotation+20
+	
+	la	$a0, insert_cube_x
+	print_string
+	read_float
+	swc1	$f0, cube_position
+	
+	la	$a0, insert_cube_y
+	print_string
+	read_float
+	swc1	$f0, cube_position+4
+	
+skip_user_input:
 
 #####################################################################################################################
 	## GENERATING CUBE ROTATION MATRIX		## USED REGISTERS

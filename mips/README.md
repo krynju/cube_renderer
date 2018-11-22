@@ -2,7 +2,5 @@
 
 ## todo
 
-* add color lines	- done
-
-* add user input 
+all done
 
