@@ -69,8 +69,8 @@ main:
 
 #####################################################################################################################
 	## GENERATING CUBE ROTATION MATRIX		## USED REGISTERS
-	##	$f0					## temporary register for calculations
-	##	$f1					## temporary register for calculations
+	##	$f0					## accumulator
+	##	$f1					## accumulator
 	##	$f2, s_roll				## sin(x)
 	##	$f3, c_roll				## cos(x)
 	##	$f4, s_pitch				## sin(y)
@@ -118,68 +118,72 @@ main:
 	
 #####################################################################################################################
 	## CUBE_MATRIX x VERTICES_VECTORS MULTIPLY	## REGISTERS USED IN ITERATION AND OFFSET
-	##	$t0 					## matrix row offset, start at sizeof(matrix)
-	##	$t1 					## position vector row offset, start at sizeof(pos_vector)
-	##	$t2					## currently calculated element offset	
-	##	$t3					## vertices iteration, starts at sizeof(vertices)
+	##	$t0 					## vertices iteration, starts at sizeof(vertices)
 	##	$f0					## accumulator used in calcs
 	##	$f1					## accumulator used in calcs
-	##	$f2					## mx1	rot matrix
-	##	$f3					## mx2	rot matrix
-	##	$f4					## mx3	rot matrix
-	##	$f5					## px 	position vector
+	##	$f2					## a11	cube rot matrix
+	##	$f3					## a12	cube rot matrix
+	##	$f4					## a13	cube rot matrix
+	##	$f5					## a21	cube rot matrix
+	##	$f6					## a22	cube rot matrix
+	##	$f7					## a23	cube rot matrix
+	##	$f8					## a31	cube rot matrix
+	##	$f9					## a32	cube rot matrix
+	##	$f10					## a33	cube rot matrix
+	##	$f11					## pos1	cube position vector
+	##	$f12					## pos2	cube position vector
+	##	$f13					## pos3	cube position vector
+	##	$f14					## ver1	vertex position vector
+	##	$f15					## ver2	vertex position vector
+	##	$f16					## ver3	vertex position vector
 	
-	lwc1	$f2, cube_rotation			## load matrix row 
-	lwc1	$f3, cube_rotation+4
-	lwc1	$f4, cube_rotation+8
-	lwc1	$f5, cube_rotation+12		## load matrix row 
-	lwc1	$f6, cube_rotation+16
-	lwc1	$f7, cube_rotation+20
-	lwc1	$f8, cube_rotation+24		## load matrix row 
-	lwc1	$f9, cube_rotation+28
-	lwc1	$f10, cube_rotation+32
+	lwc1	$f2, cube_rotation			## load a11
+	lwc1	$f3, cube_rotation+4			## load a12
+	lwc1	$f4, cube_rotation+8			## load a13
+	lwc1	$f5, cube_rotation+12			## load a21
+	lwc1	$f6, cube_rotation+16			## load a22
+	lwc1	$f7, cube_rotation+20			## load a23
+	lwc1	$f8, cube_rotation+24			## load a31
+	lwc1	$f9, cube_rotation+28			## load a32
+	lwc1	$f10, cube_rotation+32			## load a33
 	
-	lwc1	$f11, cube_position		## load position vector element
-	lwc1	$f12, cube_position+4
-	lwc1	$f13, cube_position+8
+	lwc1	$f11, cube_position			## load pos1
+	lwc1	$f12, cube_position+4			## load pos2
+	lwc1	$f13, cube_position+8			## load pos3
 	
-	li	$t0, 96
+	li	$t0, VERTICES_ARRAY_SIZE #96		## iterator over vertices array
 vertex_loop:
-	sub	$t0,$t0, 12
-	lwc1	$f14, vertices($t0)		## load position vector element
-	lwc1	$f15, vertices+4($t0)
-	lwc1	$f16, vertices+8($t0)
+	sub	$t0,$t0, 12				## decrement the offset
+	lwc1	$f14, vertices($t0)			## load ver1
+	lwc1	$f15, vertices+4($t0)			## load ver2
+	lwc1	$f16, vertices+8($t0)			## load ver3
 	
-	mov.s	$f1, $f11	#v1
-	mul.s	$f0, $f2, $f14
-	add.s 	$f1, $f1, $f0
-	mul.s	$f0, $f3, $f15
-	add.s 	$f1, $f1, $f0
-	mul.s	$f0, $f4, $f16
-	add.s 	$f1, $f1, $f0
+	mov.s	$f1, $f11				## acc = pos1	
+	mul.s	$f0, $f2, $f14				## a11*ver1
+	add.s 	$f1, $f1, $f0				## acc += a11*ver1
+	mul.s	$f0, $f3, $f15				## a12*ver2
+	add.s 	$f1, $f1, $f0				## acc += a12*ver2
+	mul.s	$f0, $f4, $f16				## a13*ver3
+	add.s 	$f1, $f1, $f0				## acc += a13*ver3
+	swc1	$f1, vertices($t0)			## store acc into ver1
 	
-	swc1	$f1, vertices($t0)
+	mov.s	$f1, $f12				## acc = pos2			
+	mul.s	$f0, $f5, $f14				## a21*ver1
+	add.s 	$f1, $f1, $f0				## acc += a21*ver1
+	mul.s	$f0, $f6, $f15				## a22*ver2
+	add.s 	$f1, $f1, $f0				## acc += a22*ver2
+	mul.s	$f0, $f7, $f16				## a23*ver3
+	add.s 	$f1, $f1, $f0				## acc += a23*ver3
+	swc1	$f1, vertices+4($t0)			## store acc into ver2
 	
-	mov.s	$f1, $f12	#v2
-	mul.s	$f0, $f5, $f14
-	add.s 	$f1, $f1, $f0
-	mul.s	$f0, $f6, $f15
-	add.s 	$f1, $f1, $f0
-	mul.s	$f0, $f7, $f16
-	add.s 	$f1, $f1, $f0
-	
-	swc1	$f1, vertices+4($t0)
-	
-	
-	mov.s	$f1, $f13	#v2
-	mul.s	$f0, $f8, $f14
-	add.s 	$f1, $f1, $f0
-	mul.s	$f0, $f9, $f15
-	add.s 	$f1, $f1, $f0
-	mul.s	$f0, $f10, $f16
-	add.s 	$f1, $f1, $f0
-	swc1	$f1, vertices+8($t0)
-	
+	mov.s	$f1, $f13				## acc = pos2			
+	mul.s	$f0, $f8, $f14				## a31*ver1
+	add.s 	$f1, $f1, $f0				## acc += a31*ver1
+	mul.s	$f0, $f9, $f15				## a32*ver2
+	add.s 	$f1, $f1, $f0				## acc += a32*ver2
+	mul.s	$f0, $f10, $f16				## a33*ver3
+	add.s 	$f1, $f1, $f0				## acc += a33*ver3
+	swc1	$f1, vertices+8($t0)			## store acc into ver2
 	
 	bnez	$t0, vertex_loop
 #####################################################################################################################
