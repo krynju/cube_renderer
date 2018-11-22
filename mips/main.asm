@@ -47,7 +47,6 @@
  						0x0000, 0x0000, 0x000c, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
  						0x0000, 0x0000, 0x0000
 	## pixel space - 512x512x3 bytes
-				.align 2
 	bitmap: 		.space		BITMAP_SIZE ## 786432
 	float1:			.float		1.0
 	float0:			.float		0.0
@@ -66,6 +65,19 @@
 .text
 
 main:
+
+
+#####################################################################################################################
+	## GENERATING CUBE ROTATION MATRIX		## USED REGISTERS
+	##	$f0					## temporary register for calculations
+	##	$f1					## temporary register for calculations
+	##	$f2, s_roll				## sin(x)
+	##	$f3, c_roll				## cos(x)
+	##	$f4, s_pitch				## sin(y)
+	##	$f5, c_pitch				## cos(y)
+	##	$f6, s_yaw				## sin(z)
+	##	$f7, c_yaw				## cos(z)
+	
 	lwc1	$f2, s_roll				## sin(x)
 	lwc1	$f3, c_roll				## cos(x)
 	lwc1	$f4, s_pitch				## sin(y)
@@ -74,43 +86,36 @@ main:
 	lwc1	$f7, c_yaw				## cos(z)
 	
 	mul.s	$f0, $f5, $f7				## a11 = cos(y)*cos(z)
-	swc1	$f0, cube_rotation
+	swc1	$f0, cube_rotation			## a11 store
 	mul.s	$f0, $f5, $f6				## a12 = cos(y)*sin(z)
-	swc1	$f0, cube_rotation+4
+	swc1	$f0, cube_rotation+4			## a12 store
 	neg.s	$f0, $f4				## a13 = -sin(y)
-	swc1	$f0, cube_rotation+8
+	swc1	$f0, cube_rotation+8			## a13 store
 	mul.s	$f0, $f7, $f2				## cos(z)*sin(x)
 	mul.s	$f0, $f0, $f4				## cos(z)*sin(x)*sin(y)
 	mul.s	$f1, $f3, $f6				## cos(x)*sin(z)
 	sub.s	$f0, $f0, $f1				## a21 = cos(z)*sin(x)*sin(y) - cos(x)*sin(z)
-	swc1	$f0, cube_rotation+12
-
-	mul.s	$f0, $f3, $f7
-	mul.s	$f1, $f2, $f4
-	mul.s	$f1, $f1, $f6
-	add.s 	$f0, $f0, $f1
-	swc1	$f0, cube_rotation+16
-	mul.s	$f0, $f5, $f2
-	swc1	$f0, cube_rotation+20
+	swc1	$f0, cube_rotation+12			## a21 store
+	mul.s	$f0, $f3, $f7				## cos(x)*cos(z)
+	mul.s	$f1, $f2, $f4				## sin(x)*sin(y)
+	mul.s	$f1, $f1, $f6				## sin(x)*sin(y)*sin(z)
+	add.s 	$f0, $f0, $f1				## a22 = cos(x)*cos(z) + sin(x)*sin(y)*sin(z)
+	swc1	$f0, cube_rotation+16			## a22 store
+	mul.s	$f0, $f5, $f2				## a23 = cos(y)*sin(y)
+	swc1	$f0, cube_rotation+20			## a23 store
+	mul.s	$f0, $f2, $f6				## sin(x)*sin(z)
+	mul.s	$f1, $f3, $f7				## cos(x)*cos(z)
+	mul.s	$f1, $f1, $f4				## cos(x)*cos(z)*sin(y)
+	add.s 	$f0, $f0, $f1				## a31 = sin(x)*sin(z) + cos(x)*cos(z)*sin(y)
+	swc1	$f0, cube_rotation+24			## a31 store
+	mul.s	$f0, $f3, $f4				## cos(x)*sin(y)
+	mul.s	$f0, $f0, $f6				## cos(x)*sin(y)*sin(z)	
+	mul.s	$f1, $f2, $f7				## cos(z)*sin(x)
+	sub.s	$f0, $f0, $f1				## a32 = cos(x)*sin(y)*sin(z) - cos(z)*sin(x)
+	swc1	$f0, cube_rotation+28			## a32 store
+	mul.s	$f0, $f3, $f5				## a33 = cos(x)*cos(y)
+	swc1	$f0, cube_rotation+32			## a33 store
 	
-	mul.s	$f0, $f2, $f6
-	mul.s	$f1, $f3, $f7
-	mul.s	$f1, $f1, $f4
-	add.s 	$f0, $f0, $f1
-	swc1	$f0, cube_rotation+24
-	
-	mul.s	$f0, $f3, $f4			
-	mul.s	$f0, $f0, $f6				
-	mul.s	$f1, $f2, $f7			
-	sub.s	$f0, $f0, $f1	
-	swc1	$f0, cube_rotation+28
-	
-	mul.s	$f0, $f3, $f5
-	swc1	$f0, cube_rotation+32
-	
-		
-
-
 #####################################################################################################################
 	## CUBE_MATRIX x VERTICES_VECTORS MULTIPLY	## REGISTERS USED IN ITERATION AND OFFSET
 	##	$t0 					## matrix row offset, start at sizeof(matrix)
@@ -138,9 +143,9 @@ main:
 	lwc1	$f12, cube_position+4
 	lwc1	$f13, cube_position+8
 	
-	li		$t0, 96
+	li	$t0, 96
 vertex_loop:
-	sub		$t0,$t0, 12
+	sub	$t0,$t0, 12
 	lwc1	$f14, vertices($t0)		## load position vector element
 	lwc1	$f15, vertices+4($t0)
 	lwc1	$f16, vertices+8($t0)
@@ -265,7 +270,6 @@ generate_lines_part2_inner:
 	
 	lwc1	$f2, projected_points($t2)		## loading destinations x and y
 	lwc1	$f3, projected_points+4($t2)
-	
 							## create a line info structure
 	swc1	$f0, lines($t0)				## source	x
 	swc1	$f1, lines+4($t0)			## source	y
