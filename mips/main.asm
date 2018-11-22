@@ -11,7 +11,7 @@
 
 .data
 	## contains sin and cos of roll pitch and yaw 
-	rotation:		.float			0.0, 1.0, 0.0, 1.0, 0.0, 1.0
+	rotation:		.float			0.5, 0.86, 0.5, 0.86, 0.0, 1.0
 	
 	## cube rotation matrix 			36 bytes = 3x3x4 bytes
 	cube_rotation:		.float			1.0, 0.0, 0.0, 
@@ -44,6 +44,11 @@
 	## array of pairs of projected points generated for easy line drawing, contains generated pairs for edges
 	lines:			.space			192	
 	
+	line_colours:		.byte			0xFF, 0x00, 0x00, 0xFF, 0x66, 0x00, 0xFF, 0x94, 0x00,
+							0xFE, 0xC5, 0x00, 0xFF, 0xFF, 0x00, 0x8C, 0xC7, 0x00,
+							0x0F, 0xAD, 0x00, 0x00, 0xA3, 0xC7, 0x00, 0x64, 0xB5,
+							0x00, 0x10, 0xA5, 0x63, 0x00, 0xA5, 0xC5, 0x00, 0x7C
+			
 	## helper for loading float 1.0 fast
 	float1:			.float			1.0
 	
@@ -283,6 +288,13 @@ generate_lines_part2_inner:
 #####################################################################################################################
 	## DRAW GENERATED LINES			## USED REGISTERS
 	##	$t0					## lines iteration, load with sizeof(lines)
+	## 	$t1					## container for converted x float
+	##	$t2					## container for converted y float
+	## 	$t3					## counting bitmap offset accumulator
+	##	$t4					## colors iteration
+	##	$t5					## red color
+	##	$t6					## green color
+	##	$t7					## blue color
 	##	$f0					## iterator over vector length
 	##	$f1					## source x
 	##	$f2					## source y
@@ -295,15 +307,22 @@ generate_lines_part2_inner:
 	##	$f9					## step
 	##	$f10					## 1.0 float for incrementing
 	
-	li	$t4, 0xFF				## register holding white color - temporary
+	lwc1	$f10, float1				## float = 1.0  for iterating with float
+	
 	li	$t0, 192 				## lines iteration, load with sizeof(lines)
+	li	$t4, 36			## colors iteration
 draw_line_outer_loop:
 	sub	$t0, $t0, 16				## decrement lines iterator
+	sub	$t4, $t4, 3				## decrement colours iterator
 							## load line structure
 	lwc1	$f1, lines($t0)				## source x
 	lwc1	$f2, lines+4($t0)			## source y
 	lwc1	$f3, lines+8($t0)			## dest   x	
 	lwc1	$f4, lines+12($t0)			## dest   y
+	
+	lb	$t5, line_colours($t4)			## load red
+	lb	$t6, line_colours+1($t4)		## load green
+	lb	$t7, line_colours+2($t4)		## load blue
 	
 	sub.s	$f5, $f3, $f1				## dx = x2-x1
 	sub.s	$f6, $f4, $f2  				## dy = y2-y1
@@ -319,10 +338,7 @@ draw_line_outer_loop:
 	div.s	$f5, $f5, $f9				## dx = dx/step
 	div.s	$f6, $f6, $f9				## dy = dy/step
 	
-
 	lwc1	$f0, float0				## iterator over vector length
-	lwc1	$f10, float1				## float = 1.0  for iterating with float
-
 line_drawing_loop:
 	add.s 	$f1, $f1, $f5				## x = x + dx
 	add.s 	$f2, $f2, $f6				## y = y + dy
@@ -337,9 +353,9 @@ line_drawing_loop:
 	mul	$t3, $t3, 3				## bitmap byte offset = bitmap pixel offset * 3
 	
 	
-	sb	$t4, bitmap($t3)			## fill red 
-	sb	$t4, bitmap+1($t3)			## fill green
-	sb	$t4, bitmap+2($t3)			## fill blue
+	sb	$t5, bitmap($t3)			## fill red 
+	sb	$t6, bitmap+1($t3)			## fill green
+	sb	$t7, bitmap+2($t3)			## fill blue
 	
 	add.s	$f0, $f0, $f10				## increment i
 	c.lt.s 	$f0, $f9			
