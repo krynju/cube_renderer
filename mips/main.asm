@@ -1,71 +1,68 @@
 .include "macros.asm"
 
-.eqv	BITMAP_SIZE 				786432
-.eqv	CANVAS_DISTANCE				100.0
-.eqv	CUBE_ROTATION_MATRIX_SIZE		36
-.eqv	CUBE_POSITION_VECTOR_SIZE		12
-.eqv	VERTICES_ARRAY_SIZE			96
-.eqv	PROJECTED_POINTS_SIZE			64
-.eqv	BITMAP_SIDE				256.0
+.eqv	BITMAP_SIZE 					786432
+.eqv	CANVAS_DISTANCE					100.0
+.eqv	CUBE_ROTATION_MATRIX_SIZE			36
+.eqv	CUBE_POSITION_VECTOR_SIZE			12
+.eqv	VERTICES_ARRAY_SIZE				96
+.eqv	PROJECTED_POINTS_SIZE				64
+.eqv	BITMAP_OFFSET_FLOAT				256.0
 
 
 .data
-	## cube rotation matrix 		36 bytes = 3x3x4 bytes
-	cube_rotation:		.float		1.0, 0.0, 0.0, 
-						0.0, 1.0, 0.0, 
-						0.0, 0.0, 1.0
-			
-	## cube position vector 		12 bytes = 3x4 bytes
-	cube_position:		.float		0.0, 
-						0.0, 
-						-300.0
+	## contains sin and cos of roll pitch and yaw 
+	rotation:		.float			0.0, 1.0, 0.0, 1.0, 0.0, 1.0
 	
-	## array of vertex vectors 		96 bytes = 8x12 bytes 	## LINE CONNECTIONS
-	vertices:		.float		-75.0, 	75.0, 	75.0,	## v1 -> v6,v7
-						-75.0, 	-75.0, 	-75.0,	## v2 -> v5,v7
-						75.0, 	-75.0, 	75.0,	## v3 -> v5,v6
-						-75.0, -75.0, 	75.0,	## v4 -> v1,v2,v3
-						75.0, 	-75.0, 	-75.0, 	## v5
-						75.0, 	75.0, 	75.0, 	## v6
-						-75.0, 	75.0, 	-75.0,	## v7
-						75.0, 	75.0, 	-75.0,	## v8 -> v5,v6,v7
-												
-							
+	## cube rotation matrix 			36 bytes = 3x3x4 bytes
+	cube_rotation:		.float			1.0, 0.0, 0.0, 
+							0.0, 1.0, 0.0, 
+							0.0, 0.0, 1.0
+			
+	## cube position vector 			12 bytes = 3x4 bytes
+	cube_position:		.float			0.0, 
+							0.0, 
+							-300.0
+	
+	## array of vertex vectors 			96 bytes = 8x12 bytes 	## LINE CONNECTIONS
+	vertices:		.float			-75.0, 	75.0, 	75.0,	## v1 -> v6,v7
+							-75.0, 	-75.0, 	-75.0,	## v2 -> v5,v7
+							75.0, 	-75.0, 	75.0,	## v3 -> v5,v6
+							-75.0, -75.0, 	75.0,	## v4 -> v1,v2,v3
+							75.0, 	-75.0, 	-75.0, 	## v5
+							75.0, 	75.0, 	75.0, 	## v6
+							-75.0, 	75.0, 	-75.0,	## v7
+							75.0, 	75.0, 	-75.0,	## v8 -> v5,v6,v7
+													
+	canvas_distance:	.float			CANVAS_DISTANCE		
+						
+	bitmap_offset:		.float			BITMAP_OFFSET_FLOAT
+	
 	## array of projected vertices onto the canvas, contains a pair of x and y cords (float) for every vertex
 	##				 	bytes = 8x8 bytes
-	projected_points:	.space		PROJECTED_POINTS_SIZE
+	projected_points:	.space			PROJECTED_POINTS_SIZE
 	
-	## canvas distance 
-	canvas_distance:	.float		CANVAS_DISTANCE
+	## array of pairs of projected points generated for easy line drawing, contains generated pairs for edges
+	lines:			.space			192	
 	
+	## helper for loading float 1.0 fast
+	float1:			.float			1.0
+	
+	## helper for loading float 0.0 fast
+	float0:			.float			0.0
+
 	## output filename 
-	filename:		.asciiz 	"mips_output.bmp"
+	filename:		.asciiz 		"mips_output.bmp"
 	
 	## 512x512 basic 24-bit bitmap header
-	bitmap_header:		.half		0x4d42, 0x0036, 0x000c, 0x0000, 0x0000, 0x0036, 0x0000, 0x0028,
- 						0x0000, 0x0200, 0x0000, 0x0200, 0x0000, 0x0001, 0x0018, 0x0000,
- 						0x0000, 0x0000, 0x000c, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
- 						0x0000, 0x0000, 0x0000
+	bitmap_header:		.half			0x4d42, 0x0036, 0x000c, 0x0000, 0x0000, 0x0036, 0x0000, 0x0028,
+ 							0x0000, 0x0200, 0x0000, 0x0200, 0x0000, 0x0001, 0x0018, 0x0000,
+ 							0x0000, 0x0000, 0x000c, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+ 							0x0000, 0x0000, 0x0000
 	## pixel space - 512x512x3 bytes
-	bitmap: 		.space		BITMAP_SIZE ## 786432
-	float1:			.float		1.0
-	float0:			.float		0.0
-	float2:			.float		2.0
-	bitmap_side:		.float		BITMAP_SIDE
-	
-	lines:			.space		192
-	
-	s_roll:			.float		0.0
-	c_roll:			.float		1.0
-	s_pitch:		.float		0.0
-	c_pitch:		.float		1.0
-	s_yaw:			.float		0.0
-	c_yaw:			.float		1.0
-	
+	bitmap: 		.space			BITMAP_SIZE ## 786432
+		
 .text
-
 main:
-
 
 #####################################################################################################################
 	## GENERATING CUBE ROTATION MATRIX		## USED REGISTERS
@@ -78,12 +75,12 @@ main:
 	##	$f6, s_yaw				## sin(z)
 	##	$f7, c_yaw				## cos(z)
 	
-	lwc1	$f2, s_roll				## sin(x)
-	lwc1	$f3, c_roll				## cos(x)
-	lwc1	$f4, s_pitch				## sin(y)
-	lwc1	$f5, c_pitch				## cos(y)
-	lwc1	$f6, s_yaw				## sin(z)
-	lwc1	$f7, c_yaw				## cos(z)
+	lwc1	$f2, rotation				## sin(x)
+	lwc1	$f3, rotation+4				## cos(x)
+	lwc1	$f4, rotation+8				## sin(y)
+	lwc1	$f5, rotation+12			## cos(y)
+	lwc1	$f6, rotation+16			## sin(z)
+	lwc1	$f7, rotation+20			## cos(z)
 	
 	mul.s	$f0, $f5, $f7				## a11 = cos(y)*cos(z)
 	swc1	$f0, cube_rotation			## a11 store
@@ -197,9 +194,8 @@ vertex_loop:
 	##	$f4					## canvas distance 
 	##	$f5					## load half of bitmap side size
 	
-	
 	lwc1	$f4, canvas_distance			## load canvas distance
-	lwc1	$f5, bitmap_side			## load half of bitmap side size
+	lwc1	$f5, bitmap_offset			## load half of bitmap side size
 	li	$t0, PROJECTED_POINTS_SIZE #64		## projected points iteration, load with sizeof(projected_points)
 	li	$t1, VERTICES_ARRAY_SIZE   #96		## vertices iteration, load with sizeof(vertices)
 	
@@ -207,9 +203,9 @@ projection_loop:
 	sub	$t0, $t0, 8				## decrement the projected_points offset
 	sub	$t1, $t1, 12				## decrement the vertices offset
 	
-	lwc1	$f0, vertices($t1)		## x vertex vector
-	lwc1	$f1, vertices+4($t1)	## y vertex vector
-	lwc1	$f2, vertices+8($t1)	## z vertex vector	
+	lwc1	$f0, vertices($t1)			## x vertex vector
+	lwc1	$f1, vertices+4($t1)			## y vertex vector
+	lwc1	$f2, vertices+8($t1)			## z vertex vector	
 	
 	neg.s	$f3, $f4				## -distance
 	div.s	$f3, $f3, $f2				## -distance/z
@@ -236,7 +232,6 @@ projection_loop:
 	##	$f3					## dest   	y
 	
 	li	$t0, 0					## load lines iterator with 0
-	
 	## 1ST PART
 	li	$t1, PROJECTED_POINTS_SIZE ##64	## iterator through projected points
 generate_lines_part1_outer:				## what happens in 1st iter || what happens in 2nd iter
@@ -301,10 +296,8 @@ generate_lines_part2_inner:
 	##	$f10					## 1.0 float for incrementing
 	
 	li	$t4, 0xFF				## register holding white color - temporary
-	
 	li	$t0, 192 				## lines iteration, load with sizeof(lines)
-	
-draw_line_outer_loop: ## write explaination
+draw_line_outer_loop:
 	sub	$t0, $t0, 16				## decrement lines iterator
 							## load line structure
 	lwc1	$f1, lines($t0)				## source x
@@ -328,7 +321,7 @@ draw_line_outer_loop: ## write explaination
 	
 
 	lwc1	$f0, float0				## iterator over vector length
-	lwc1	$f10, float1
+	lwc1	$f10, float1				## float = 1.0  for iterating with float
 
 line_drawing_loop:
 	add.s 	$f1, $f1, $f5				## x = x + dx
@@ -390,7 +383,7 @@ print_loop:
 	lwc1	$f12, projected_points($t0)
 	li	$v0, 2
 	syscall	
-	print_newline
+	print_tab
 	lwc1	$f12, projected_points+4($t0)
 	li	$v0, 2
 	syscall
