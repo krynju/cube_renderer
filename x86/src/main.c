@@ -6,34 +6,33 @@
 #define SCREEN_WIDTH 512
 #define SCREEN_HEIGHT 512
 
-extern int render(char *a);
+extern int render(unsigned char *input, unsigned char *output);
 
 char output_str[] = "Hello, world";
+unsigned char input[BMP_SIZE];
+unsigned char output[BMP_SIZE];
 
-unsigned char str[BMP_SIZE];
 
 int main(int argc, char *argv[]) {
-
-    printf("Hello, World!\n");
-    render(output_str);
-    printf("%s", output_str);
-
     //<temporary>
     FILE *bmp = fopen("../res/test_bitmap.bmp", "r");
     unsigned int i = 0;
     int c = getc(bmp);
     while (c != EOF) {
-        str[i] = (unsigned char) c;
+        input[i] = (unsigned char) c;
         ++i;
         c = getc(bmp);
     }
     fclose(bmp);
     //</temporary>
 
+    render(input, output);
+
+
     SDL_Window *window = NULL;
     SDL_Surface *screenSurface = NULL;
 
-    SDL_Surface *gBMP = SDL_LoadBMP_RW(SDL_RWFromConstMem(str, BMP_SIZE), 1);
+    SDL_Surface *gBMP = SDL_LoadBMP_RW(SDL_RWFromConstMem(output, BMP_SIZE), 1);
 
     SDL_Init(SDL_INIT_VIDEO);
 
