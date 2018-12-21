@@ -3,8 +3,8 @@
 
 extern int render(char *a);
 
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
+const int SCREEN_WIDTH = 512;
+const int SCREEN_HEIGHT = 512;
 
 char output_str[] = "Hello, world";
 
@@ -16,6 +16,11 @@ int main(int argc, char *argv[]) {
 
     SDL_Window *window = NULL;
     SDL_Surface *screenSurface = NULL;
+    SDL_Surface *gBMP = SDL_LoadBMP("../res/test_bitmap.bmp");
+    if (gBMP == NULL) {
+        printf("bitmap error\n");
+        return 1;
+    }
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -30,8 +35,8 @@ int main(int argc, char *argv[]) {
             printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
         } else {
             screenSurface = SDL_GetWindowSurface(window);
-
-            SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0xFF, 0xcc, 0xFF));
+            //SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0xFF, 0xcc, 0xFF));
+            SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
             SDL_UpdateWindowSurface(window);
             SDL_Delay(2000);
         }
