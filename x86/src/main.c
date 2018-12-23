@@ -9,42 +9,39 @@
 #define CUBE_HALF_SIDE (CUBE_SIDE/2)
 
 
-extern int render(unsigned char *input, unsigned char *output);
+extern int render(void *adr, unsigned char *output);
 
-unsigned char input[BMP_SIZE];
-unsigned char output[BMP_SIZE];
+unsigned char output[BMP_SIZE] = {0x42, 0x4d, 0x36, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00,
+                                  0x28, 0x00,
+                                  0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00,
+                                  0x00, 0x00,
+                                  0x00, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                  0x00, 0x00,
+                                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 struct Cube cube = {
-        .position_vector={0.0, 0.0, 0.0},
-        .rotation_vector={0.0, 0.0, 0.0},
+        .position_vector={0.0, 0.0, -100},
+        .rotation_vector={7.0, 7.0, 7.0},
         .vertices={
-                [0]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE},
-                [1]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE},
-                [2]={CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE},
-                [3]={CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE},
-                [4]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE},
-                [5]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE},
-                [6]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE},
-                [7]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE},
+                [0]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
+                [1]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
+                [2]={CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
+                [3]={CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
+                [4]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
+                [5]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
+                [6]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
+                [7]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
         }
 };
 
 
+
 int main(int argc, char *argv[]) {
-    //<temporary>
-    FILE *bmp = fopen("../res/test_bitmap.bmp", "r");
-    unsigned int i = 0;
-    int c = getc(bmp);
-    while (c != EOF) {
-        input[i] = (unsigned char) c;
-        ++i;
-        c = getc(bmp);
-    }
-    fclose(bmp);
-    //</temporary>
+//    for (int i = 0; i < 27; ++i) {
+//        *(output + 2*i) = header[i];
+//    }
 
-    render(input, output);
-
+    render(&cube, output);
 
     SDL_Window *window = NULL;
     SDL_Surface *screenSurface = NULL;
@@ -61,7 +58,7 @@ int main(int argc, char *argv[]) {
     //loop start
     SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
     SDL_UpdateWindowSurface(window);
-    SDL_Delay(2000);
+    SDL_Delay(10000);
     //loop end
 
     SDL_DestroyWindow(window);
