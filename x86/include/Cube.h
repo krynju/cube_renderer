@@ -9,8 +9,6 @@ struct Cube {
     struct Point vertices[8];
     float position_vector[3];
     float rotation_vector[3];
-    int debug[2];
-
 }__attribute__ ((aligned (16)));
 
 

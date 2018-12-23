@@ -21,7 +21,7 @@ unsigned char output[BMP_SIZE] = {0x42, 0x4d, 0x36, 0x00, 0x0c, 0x00, 0x00, 0x00
 
 struct Cube cube = {
         .position_vector={0.0, 0.0, -100},
-        .rotation_vector={7.0, 7.0, 7.0},
+        .rotation_vector={0.0, 0.0, 0.0},
         .vertices={
                 [0]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
                 [1]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     //loop start
     SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
     SDL_UpdateWindowSurface(window);
-    SDL_Delay(10000);
+    SDL_Delay(2000);
     //loop end
 
     SDL_DestroyWindow(window);

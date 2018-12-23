@@ -90,32 +90,27 @@ outer_loop_3:
     sub ebx, 8
 
     mov edi, [projected_points+ebx]
-    mov [ecx+144], edi
     fld DWORD [projected_points+ebx]
     fisttp DWORD [projected_points+ebx]
 
     mov esi, [projected_points+ebx+4]
-    mov [ecx+148], esi
     fld DWORD [projected_points+ebx+4]
     fisttp DWORD [projected_points+ebx+4]
 
     mov edi, [projected_points+ebx]
     mov esi, [projected_points+ebx+4]
 
-    mov [ecx+156], edi
-    mov [ecx+152], esi
-
     shl esi, 9
 
     add esi, edi
 
-    mov edi, esi
+    mov edi, esi    ;mul 3
     shl esi, 1
     add esi, edi
 
-    mov [eax + esi], BYTE 0xff
-    mov [eax + esi+1], BYTE 0xff
-    mov [eax + esi+2], BYTE 0xff
+    mov [eax+esi], BYTE 0xff
+    mov [eax+esi+1], BYTE 0xff
+    mov [eax+esi+2], BYTE 0xff
 
     cmp ebx, 0
     jnz outer_loop_3
