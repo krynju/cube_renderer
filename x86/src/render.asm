@@ -21,13 +21,14 @@ _render:
 	push esi
 	push edi
 
+matrix_times_vertices:
 	mov eax, [ebp + 8]
 	mov ebx, 128
 outer_loop:
     sub ebx, 16
-    movaps xmm1, [eax + ebx]
+    movaps xmm1, [eax + ebx]        ;load vertex vector
 
-    movaps xmm0, [matrix]
+    movaps xmm0, [matrix]           ;load transformation matrix row
     mulps xmm0, xmm1
     haddps xmm0, xmm0
     haddps xmm0, xmm0
@@ -89,11 +90,9 @@ draw:
 outer_loop_3:
     sub ebx, 8
 
-    mov edi, [projected_points+ebx]
     fld DWORD [projected_points+ebx]
     fisttp DWORD [projected_points+ebx]
 
-    mov esi, [projected_points+ebx+4]
     fld DWORD [projected_points+ebx+4]
     fisttp DWORD [projected_points+ebx+4]
 
@@ -114,10 +113,6 @@ outer_loop_3:
 
     cmp ebx, 0
     jnz outer_loop_3
-
-
-
-
 
 	pop edi
 	pop esi
