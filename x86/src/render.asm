@@ -1,3 +1,4 @@
+section .data
 matrix: dd  1.0, 0, 0, 0,       \
             0, 1.0, 0, 0,       \
             0, 0, 1.0, -200.0,  \
@@ -9,7 +10,8 @@ half_size: dd 256.0
 section .bss
 points: resd 32
 projected_points: resd 16
-
+sine: resd 3
+cosine: resd 3
 
 section .text
 global _render
@@ -21,7 +23,46 @@ _render:
 	push esi
 	push edi
 
+
+calc_trigs:
+    mov eax, [ebp+8]
+
+    fld DWORD [eax + 140]     ;push x rot to fpu stack
+    fsin
+    fst DWORD [sine]          ;save sin(x)
+    fld DWORD [eax + 140]     ;push x rot to fpu stack
+    fsin
+    fst DWORD [cosine]        ;save cos(x)
+
+    fld DWORD [eax + 144]     ;push y rot to fpu stack
+    fsin
+    fst DWORD [sine+4]        ;save sin(y)
+    fld DWORD [eax + 144]     ;push z rot to fpu stack
+    fsin
+    fst DWORD [cosine+4]      ;save cos(y)
+
+    fld DWORD [eax + 148]     ;push z rot to fpu stack
+    fsin
+    fst DWORD [sine+8]        ;save sin(z)
+    fld DWORD [eax + 148]     ;push z rot to fpu stack
+    fsin
+    fst DWORD [cosine+8]      ;save cos(z)
+
+fill_position_vector:
+    mov eax, [ebp+8]
+
+    mov ebx, DWORD [eax+128]
+    mov [matrix + 12], DWORD ebx
+    mov ebx, [eax+132]
+    mov [matrix + 28], DWORD ebx
+    mov ebx, [eax+136]
+    mov [matrix + 44], DWORD ebx
+
 fill_rotation_matrix:
+
+
+
+
 
 matrix_times_vertices:
 	mov eax, [ebp + 8]

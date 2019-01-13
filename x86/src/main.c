@@ -17,8 +17,6 @@ unsigned char output[BMP_SIZE] = {0x42, 0x4d, 0x36, 0x00, 0x0c, 0x00, 0x00, 0x00
                                   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 struct Cube cube = {
-        .position_vector={0.0, 0.0, -100},
-        .rotation_vector={1.57, 0.0, 0.0},
         .vertices={
                 [0]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
                 [1]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
@@ -28,7 +26,9 @@ struct Cube cube = {
                 [5]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
                 [6]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
                 [7]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
-        }
+        },
+        .position_vector={0.0, 0.0, -100},
+        .rotation_vector={1.57, 0.0, 0.0}
 };
 
 
