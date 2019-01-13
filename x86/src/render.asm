@@ -39,7 +39,7 @@ calc_trigs:
     fstp DWORD [sine+4]          ;save sin(y)
     fld DWORD [eax+144]         ;push z rot to fpu stack
     fcos
-    fst DWORD [cosine+4]        ;save cos(y)
+    fstp DWORD [cosine+4]        ;save cos(y)
 
     fld DWORD [eax+148]         ;push z rot to fpu stack
     fsin
