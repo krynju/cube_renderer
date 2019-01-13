@@ -34,6 +34,7 @@ struct Cube cube = {
 
 int main(int argc, char *argv[]) {
     render(&cube, output);
+    render(&cube, output);
 
     SDL_Window *window = NULL;
     SDL_Surface *screenSurface = NULL;
@@ -50,6 +51,7 @@ int main(int argc, char *argv[]) {
     //loop start
     SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
     SDL_UpdateWindowSurface(window);
+
     SDL_Delay(2000);
     //loop end
 

@@ -29,24 +29,24 @@ calc_trigs:
 
     fld DWORD [eax+140]         ;push x rot to fpu stack
     fsin
-    fst DWORD [sine]            ;save sin(x)
+    fstp DWORD [sine]            ;save sin(x)
     fld DWORD [eax+140]         ;push x rot to fpu stack
     fcos
-    fst DWORD [cosine]          ;save cos(x)
+    fstp DWORD [cosine]          ;save cos(x)
 
     fld DWORD [eax+144]         ;push y rot to fpu stack
     fsin
-    fst DWORD [sine+4]          ;save sin(y)
+    fstp DWORD [sine+4]          ;save sin(y)
     fld DWORD [eax+144]         ;push z rot to fpu stack
     fcos
     fst DWORD [cosine+4]        ;save cos(y)
 
     fld DWORD [eax+148]         ;push z rot to fpu stack
     fsin
-    fst DWORD [sine+8]          ;save sin(z)
+    fstp DWORD [sine+8]          ;save sin(z)
     fld DWORD [eax+148]         ;push z rot to fpu stack
     fcos
-    fst DWORD [cosine+8]        ;save cos(z)
+    fstp DWORD [cosine+8]        ;save cos(z)
 
 fill_position_vector:
     mov eax, [ebp+8]
@@ -186,8 +186,9 @@ projecting:
 
 draw:
     mov eax, [ebp + 12]
+    add eax, 54
     mov ebx, 64
-    mov ecx, [ebp + 8]
+
     outer_loop_3:
         sub ebx, 8
 
@@ -199,7 +200,7 @@ draw:
 
         mov edi, [projected_points+ebx]
         mov esi, [projected_points+ebx+4]
-
+gay:
         shl esi, 9
 
         add esi, edi
