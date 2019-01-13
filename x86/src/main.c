@@ -28,7 +28,7 @@ struct Cube cube = {
                 [7]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
         },
         .position_vector={0.0, 0.0, -100},
-        .rotation_vector={1.57, 0.0, 0.0}
+        .rotation_vector={0.0, 0.0, 0.0}
 };
 
 
