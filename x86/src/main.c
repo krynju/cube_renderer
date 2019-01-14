@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
         SDL_UpdateWindowSurface(window);
         SDL_Delay(10);
         calculate_new_frame();
-        free(gBMP);
+        SDL_FreeSurface(gBMP);
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_KEYDOWN:
