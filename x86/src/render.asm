@@ -125,7 +125,23 @@ fill_rotation_matrix:
 matrix_times_vertices:
 	mov eax, [ebp + 8]
 	mov ebx, 128
-    outer_loop:
+    .outer_loop:
+
+;todo implement this matrix x vector multiplication
+; xmm0 - wektor do pomnożenia
+; xmm4..7 - macierz 4x4
+;movps xmm3, xmm0
+;mulps xmm3, xmm7 ; 4 składniki 4. elementu
+;movps xmm2, xmm0
+;mulps xmm2, xmm6 ; 4 składniki 3. elementu
+;movps xmm1, xmm0
+;mulps xmm1, xmm5 ; 4 składniki 2. elementu
+;mulps xmm0, xmm4 ; 4 składniki 1. elementu
+;haddps xmm2, xmm3 ; po 2 składniki 4. i 3. elementu
+;haddps xmm0, xmm1 ; po 2 składniki 2. i 1. elementu
+;haddps xmm0, xmm2
+; xmm0 - wynik
+
         sub ebx, 16
         movaps xmm1, [eax + ebx]        ;load vertex vector
 
@@ -154,7 +170,7 @@ matrix_times_vertices:
         movd [points+12+ebx], xmm0
 
         cmp ebx, 0
-        jnz outer_loop
+        jnz .outer_loop
 
 projecting:
     mov eax, 128
@@ -200,7 +216,7 @@ draw:
 
         mov edi, [projected_points+ebx]
         mov esi, [projected_points+ebx+4]
-gay:
+
         shl esi, 9
 
         add esi, edi
@@ -208,7 +224,7 @@ gay:
         mov edi, esi    ;mul 3
         shl esi, 1
         add esi, edi
-
+;todo add bounds check on the calculated address to prevent segfaults
         mov [eax+esi], BYTE 0xff
         mov [eax+esi+1], BYTE 0xff
         mov [eax+esi+2], BYTE 0xff

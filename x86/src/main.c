@@ -2,7 +2,7 @@
 #include <SDL2/SDL.h>
 #include <mem.h>
 #include <stdlib.h>
-#include "../include/Cube.h"
+#include "Cube.h"
 
 #define BMP_SIZE 786486
 #define SCREEN_WIDTH 512
@@ -28,17 +28,21 @@ unsigned char output[BMP_SIZE] = {0x42, 0x4d, 0x36, 0x00, 0x0c, 0x00, 0x00, 0x00
 
 struct Cube cube = {
         .vertices={
-                [0]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
-                [1]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
+                [0]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
+                [1]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
                 [2]={CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
-                [3]={CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
-                [4]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
-                [5]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
-                [6]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
-                [7]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
+                [3]={-CUBE_HALF_SIDE, -CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
+                [4]={CUBE_HALF_SIDE, -CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
+                [5]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, CUBE_HALF_SIDE, 1},
+                [6]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
+                [7]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
         },
         .position_vector={0.0, 0.0, -100},
-        .rotation_vector={0.0, 0.0, 0.0}
+        .rotation_vector={0.0, 0.0, 0.0},
+        .connections={
+                [0]={0, 3}, [1]={0, 5}, [2]={0, 6}, [3]={1, 3}, [4]={1, 4}, [5]={1, 6},
+                [6]={2, 3}, [7]={2, 4}, [8]={2, 5}, [9]={4, 7}, [10]={5, 7}, [11]={6, 7}
+        }
 };
 
 
