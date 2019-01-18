@@ -8,7 +8,7 @@ struct Point {
 struct Connection {
     int from;
     int to;
-}__attribute__ ((aligned (16)));
+}__attribute__ ((aligned (4)));
 
 
 struct Cube {
