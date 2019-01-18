@@ -6,6 +6,7 @@ matrix: dd  1.0, 0, 0, 0,       \
 
 distance: dd -100.0
 half_size: dd 256.0
+float1: dd 1.0
 
 section .bss
 points: resd 32
@@ -13,6 +14,7 @@ projected_points: resd 16
 sine: resd 3
 cosine: resd 3
 
+temp:resd 1
 section .text
 global _render
 _render:
@@ -176,16 +178,16 @@ projecting:
     mov eax, 128
     mov ebx, 64
 
-    movd xmm4, [half_size]
+    movss xmm4, [half_size]
     outer_loop_2:
         sub eax, 16
         sub ebx, 8
 
-        movd xmm0, [points+eax]
-        movd xmm1, [points+eax+4]
-        movd xmm2, [points+eax+8]
+        movss xmm0, [points+eax]
+        movss xmm1, [points+eax+4]
+        movss xmm2, [points+eax+8]
 
-        movd xmm3, [distance]
+        movss xmm3, [distance]
         divss xmm3, xmm2
 
         mulss xmm0, xmm3
@@ -194,8 +196,8 @@ projecting:
         addss xmm0, xmm4
         addss xmm1, xmm4
 
-        movd [projected_points+ebx], xmm0
-        movd [projected_points+4+ebx], xmm1
+        movss [projected_points+ebx], xmm0
+        movss [projected_points+4+ebx], xmm1
 
         cmp eax, 0
         jnz outer_loop_2
@@ -233,20 +235,20 @@ projecting:
 ;        jnz outer_loop_3
 
 draw_lines:
-    mov eax, [ebp+8]
-    add eax, 152
-    mov ebx, 96
+    mov eax, [ebp+16]
+
+    mov ebx, 0
     .outer_loop:
-    sub ebx, 8
+
 
     mov edi, [eax+ebx]      ; from
     mov esi, [eax+ebx+4]    ; to
 
-    movss xmm0, [projected_points+4*edi]		; from x
-	movss xmm1, [projected_points+4+4*edi]		; from y
-	movss xmm2, [projected_points+4*esi]		; to x
-	movss xmm3, [projected_points+4+4*esi]		; to y
-
+    movd xmm0, [projected_points+8*edi]		; from x
+	movd xmm1, [projected_points+4+8*edi]		; from y
+	movd xmm2, [projected_points+8*esi]		; to x
+	movd xmm3, [projected_points+4+8*esi]		; to y
+    .dupa:
     movss xmm4, xmm2    ;dx = x2
     movss xmm5, xmm3    ;dy = y2
 
@@ -267,16 +269,19 @@ draw_lines:
     movss xmm6, xmm7    ; step = dy
     .skip:
 
+
     divss xmm4, xmm6
     divss xmm5, xmm6
 
     ;load some with float 0 to iterate
+    xorps xmm7, xmm7
     .inner_loop:
         addss xmm0, xmm4
         addss xmm1, xmm5
 
         cvtss2si edi, xmm0
         cvtss2si esi, xmm1
+
 
         .hey:
         shl esi, 9
@@ -298,7 +303,13 @@ draw_lines:
 
         pop eax
 
-    cmp ebx, 8
+;        movss xmm3, [float1]
+;        addss xmm7, xmm3
+;        comiss xmm7, xmm6
+;        jle .inner_loop
+
+    add ebx, 8
+    cmp ebx, 96
     jne .outer_loop
 
 

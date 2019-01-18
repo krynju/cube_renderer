@@ -11,7 +11,7 @@
 #define CUBE_HALF_SIDE (CUBE_SIDE/2.0)
 
 
-extern int render(void *adr, unsigned char *output);
+extern int render(void *adr, unsigned char *output, void *s);
 
 void handle_keys_down(SDL_Event event);
 
@@ -38,16 +38,17 @@ struct Cube cube = {
                 [7]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
         },
         .position_vector={0.0, 0.0, -200},
-        .rotation_vector={0.0, 0.0, 0.0},
-        .connections={
-                [0]={0, 3}, [1]={0, 5}, [2]={0, 6}, [3]={1, 3}, [4]={1, 4}, [5]={1, 6},
-                [6]={2, 3}, [7]={2, 4}, [8]={2, 5}, [9]={4, 7}, [10]={5, 7}, [11]={6, 7}
-        }
+        .rotation_vector={0.0, 0.0, 0.0}
+};
+
+struct Connection connections[12] = {
+        [0]={0, 3}, [1]={0, 5}, [2]={0, 6}, [3]={1, 3}, [4]={1, 4}, [5]={1, 6},
+        [6]={2, 3}, [7]={2, 4}, [8]={2, 5}, [9]={4, 7}, [10]={5, 7}, [11]={6, 7}
 };
 
 
 int main(int argc, char *argv[]) {
-    render(&cube, output); // debug - useless here
+    render(&cube, output, connections); // debug - useless here
 
     SDL_Event event;
     SDL_Window *window = NULL;
@@ -65,7 +66,7 @@ int main(int argc, char *argv[]) {
 
     while (!quit) {
         memset(output + 54, 0, BMP_SIZE - 54);
-        render(&cube, output);
+        render(&cube, output, connections);
 
         gBMP = SDL_LoadBMP_RW(SDL_RWFromConstMem(output, BMP_SIZE), 1);
         SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
