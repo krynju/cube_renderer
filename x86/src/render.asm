@@ -52,7 +52,6 @@ calc_trigs:
 
 fill_position_vector:
     mov eax, [ebp+8]
-
     mov ebx, DWORD [eax+128]
     mov [matrix + 12], DWORD ebx
     mov ebx, [eax+132]
@@ -202,111 +201,79 @@ projecting:
         cmp eax, 0
         jnz outer_loop_2
 
-;draw:
-;    mov eax, [ebp + 12]
-;    add eax, 54
-;    mov ebx, 64
-;
-;    outer_loop_3:
-;        sub ebx, 8
-;
-;        fld DWORD [projected_points+ebx]
-;        fisttp DWORD [projected_points+ebx]
-;
-;        fld DWORD [projected_points+ebx+4]
-;        fisttp DWORD [projected_points+ebx+4]
-;
-;        mov edi, [projected_points+ebx]
-;        mov esi, [projected_points+ebx+4]
-;
-;        shl esi, 9
-;
-;        add esi, edi
-;
-;        mov edi, esi    ;mul 3
-;        shl esi, 1
-;        add esi, edi
-;;todo add bounds check on the calculated address to prevent segfaults
-;        mov [eax+esi], BYTE 0xff
-;        mov [eax+esi+1], BYTE 0xff
-;        mov [eax+esi+2], BYTE 0xff
-;
-;        cmp ebx, 0
-;        jnz outer_loop_3
+
 
 draw_lines:
-    mov eax, [ebp+16]
-    mov edx, [ebp+12]
-    add edx, 54
-    mov ebx, 96
+    mov eax, [ebp+8]                ; load cube struct address
+    add eax, 152                    ; add offset for
+    mov edx, [ebp+12]               ; load bitmap address
+    add edx, 54                     ; add header offset
+    movss xmm6, [float1]            ; load float 1.0 into a register for fast incrementing
 
-    .outer:
-    sub ebx, 8
+    mov ebx, 96                     ; load connections size for offsetting
+    .outer_loop:
+    sub ebx, 8                      ; decrement the connections offset
 
-    mov edi, [eax+ebx]
-    mov esi, [eax+ebx+4]
+    mov edi, [eax+ebx]              ; load index of source vertex
+    mov esi, [eax+ebx+4]            ; load index of destination vertex
 
-    movss xmm0, [projected_points+8*edi]
-    movss xmm1, [projected_points+8*edi+4]
-    movss xmm2, [projected_points+8*esi]
-    movss xmm3, [projected_points+8*esi+4]
+    movss xmm0, [projected_points+8*edi]        ; load source vertex projected x cord
+    movss xmm1, [projected_points+8*edi+4]      ; load source vertex projected y cord
+    movss xmm2, [projected_points+8*esi]        ; load destination vertex projected x cord
+    movss xmm3, [projected_points+8*esi+4]      ; load destination vertex projected y cord
 
-    subss xmm2, xmm0    ;dx = x2-x1
-    subss xmm3, xmm1    ;dy = y2-y1
+    subss xmm2, xmm0                ; dx = x_d - x_s
+    subss xmm3, xmm1                ; dy = y_d - y_1
 
-    movss xmm6, xmm2
-    movss xmm7, xmm3
+    movss xmm4, xmm2                ; move dx to new register
+    movss xmm5, xmm3                ; move dy to new register
 
-    pslld  xmm6, 1  ;abs
-    psrld  xmm6, 1
+    pslld  xmm4, 1                  ; abs(dx)
+    psrld  xmm4, 1
 
-    pslld  xmm7, 1
-    psrld  xmm7, 1
+    pslld  xmm5, 1                  ; abs(dy)
+    psrld  xmm5, 1
 
-
-    comiss xmm6, xmm7
-    ja .skip           ; step = dx
-    .dups:
-    movss xmm6, xmm7    ; step = dy
+    comiss xmm4, xmm5               ; pick the larger absolute value delta, step = max(abs(dx),abs(dy))
+    ja .skip                        ; step = abs(dx)
+    movss xmm4, xmm5                ; step = abs(dy)
     .skip:
 
+    divss xmm2, xmm4                ; x_inc = dx/step
+    divss xmm3, xmm4                ; y_inc = dy/step
 
-    divss xmm2, xmm6
-    divss xmm3, xmm6
-
-    xorps xmm7, xmm7
+    xorps xmm5, xmm5                ; zero       xmm5
     .inner_loop:
-        cvtss2si edi, xmm0
-        cvtss2si esi, xmm1
+        cvtss2si edi, xmm0          ; convert x float to int32
+        cvtss2si esi, xmm1          ; convert y float to int32
 
-        shl esi, 9
-        add esi, edi
-        lea esi, [esi*3]
+        shl esi, 9                  ; y*=512
+        add esi, edi                ; y+=x
+        lea esi, [esi*3]            ; y*=3
 
+        cmp esi, 786486-54          ; check boundaries to prevent segfaults
+        jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
+        cmp esi, 0
+        jl  .skip_pixel_draw
 
-        cmp esi, 786486-54
-        ja .skip_pixel_draw
-        mov [edx+esi], BYTE 0xff
-        mov [edx+esi+1], BYTE 0xff
-        mov [edx+esi+2], BYTE 0xff
+        mov [edx+esi], BYTE 0xff    ; fill red channel
+        mov [edx+esi+1], BYTE 0xff  ; fill green channel
+        mov [edx+esi+2], BYTE 0xff  ; fill blue channel
+
         .skip_pixel_draw:
 
-        addss xmm0, xmm2
-        addss xmm1, xmm3
+        addss xmm0, xmm2            ; x += x_inc
+        addss xmm1, xmm3            ; y += y_inc
 
-        movss xmm5, [float1]
-        addss xmm7, xmm5
-        comiss xmm7, xmm6
+
+        addss xmm5, xmm6            ; x += 1.0
+        comiss xmm5, xmm4           ; check if less than step
         jb .inner_loop
 
+    cmp ebx,0                       ; check if all connections were drawn
+    jne .outer_loop
 
-    cmp ebx,0
-    .end:
-    jne .outer
-
-
-
-
+epilogue:
 	pop edi
 	pop esi
 	pop ebx

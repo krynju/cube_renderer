@@ -15,6 +15,7 @@ struct Cube {
     struct Point vertices[8];
     float position_vector[3];
     float rotation_vector[3];
+    struct Connection connections[12];
 
 }__attribute__ ((aligned (16)));
 

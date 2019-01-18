@@ -10,8 +10,10 @@
 #define CUBE_SIDE 100.0
 #define CUBE_HALF_SIDE (CUBE_SIDE/2.0)
 
+#define FRAME_TIME 10
 
-extern int render(void *adr, unsigned char *output, void *s);
+
+extern int render(void *adr, unsigned char *output);
 
 void handle_keys_down(SDL_Event event);
 
@@ -38,17 +40,15 @@ struct Cube cube = {
                 [7]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
         },
         .position_vector={0.0, 0.0, -200},
-        .rotation_vector={0.0, 0.0, 0.0}
+        .rotation_vector={0.0, 0.0, 0.0},
+        .connections={
+                [0]={0, 3}, [1]={0, 5}, [2]={0, 6}, [3]={1, 3}, [4]={1, 4}, [5]={1, 6},
+                [6]={2, 3}, [7]={2, 4}, [8]={2, 5}, [9]={4, 7}, [10]={5, 7}, [11]={6, 7}
+        }
 };
-
-struct Connection connections[12] = {
-        [0]={0, 3}, [1]={0, 5}, [2]={0, 6}, [3]={1, 3}, [4]={1, 4}, [5]={1, 6},
-        [6]={2, 3}, [7]={2, 4}, [8]={2, 5}, [9]={4, 7}, [10]={5, 7}, [11]={6, 7}
-};
-
 
 int main(int argc, char *argv[]) {
-    render(&cube, output, connections); // debug - useless here
+    render(&cube, output); // debug - useless here
 
     SDL_Event event;
     SDL_Window *window = NULL;
@@ -63,17 +63,17 @@ int main(int argc, char *argv[]) {
     screenSurface = SDL_GetWindowSurface(window);
 
     unsigned int quit = 0;
-
+    unsigned int last_frame = 0;
     while (!quit) {
-        memset(output + 54, 0, BMP_SIZE - 54);
-        render(&cube, output, connections);
+
+        render(&cube, output);
 
         gBMP = SDL_LoadBMP_RW(SDL_RWFromConstMem(output, BMP_SIZE), 1);
         SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
         SDL_UpdateWindowSurface(window);
-        SDL_Delay(15);
-        calculate_new_frame();
-        SDL_FreeSurface(gBMP);
+        last_frame = SDL_GetTicks();
+
+
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_KEYDOWN:
@@ -89,6 +89,12 @@ int main(int argc, char *argv[]) {
                     break;
             }
         }
+
+        calculate_new_frame();
+        SDL_FreeSurface(gBMP);
+        memset(output + 54, 0, BMP_SIZE - 54);
+        if (SDL_GetTicks() - last_frame < FRAME_TIME)
+            SDL_Delay(last_frame + FRAME_TIME - SDL_GetTicks());
     }
 
     SDL_DestroyWindow(window);
