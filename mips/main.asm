@@ -12,7 +12,7 @@
 
 .data
 	## contains sin and cos of roll pitch and yaw 
-	rotation:		.float			0.5, 0.86, 0.5, 0.86, 0.0, 1.0
+	rotation:		.float			0.0, 1.0, 0.0, 1.0, 0.0, 1.0
 	
 	## cube rotation matrix 			36 bytes = 3x3x4 bytes
 	cube_rotation:		.float			1.0, 0.0, 0.0, 

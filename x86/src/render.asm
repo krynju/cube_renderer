@@ -4,7 +4,7 @@ matrix: dd  1.0, 0, 0, 0,       \
             0, 0, 1.0, -200.0,  \
             0, 0, 0, 1.0
 
-distance: dd -80.0
+distance: dd -100.0
 half_size: dd 256.0
 
 section .bss
@@ -186,10 +186,10 @@ projecting:
         movd xmm2, [points+eax+8]
 
         movd xmm3, [distance]
-        divss xmm2, xmm3
+        divss xmm3, xmm2
 
-        mulss xmm0, xmm2
-        mulss xmm1, xmm2
+        mulss xmm0, xmm3
+        mulss xmm1, xmm3
 
         addss xmm0, xmm4
         addss xmm1, xmm4
@@ -200,23 +200,85 @@ projecting:
         cmp eax, 0
         jnz outer_loop_2
 
-draw:
-    mov eax, [ebp + 12]
-    add eax, 54
-    mov ebx, 64
+;draw:
+;    mov eax, [ebp + 12]
+;    add eax, 54
+;    mov ebx, 64
+;
+;    outer_loop_3:
+;        sub ebx, 8
+;
+;        fld DWORD [projected_points+ebx]
+;        fisttp DWORD [projected_points+ebx]
+;
+;        fld DWORD [projected_points+ebx+4]
+;        fisttp DWORD [projected_points+ebx+4]
+;
+;        mov edi, [projected_points+ebx]
+;        mov esi, [projected_points+ebx+4]
+;
+;        shl esi, 9
+;
+;        add esi, edi
+;
+;        mov edi, esi    ;mul 3
+;        shl esi, 1
+;        add esi, edi
+;;todo add bounds check on the calculated address to prevent segfaults
+;        mov [eax+esi], BYTE 0xff
+;        mov [eax+esi+1], BYTE 0xff
+;        mov [eax+esi+2], BYTE 0xff
+;
+;        cmp ebx, 0
+;        jnz outer_loop_3
 
-    outer_loop_3:
-        sub ebx, 8
+draw_lines:
+    mov eax, [ebp+8]
+    add eax, 152
+    mov ebx, 96
+    .outer_loop:
+    sub ebx, 8
 
-        fld DWORD [projected_points+ebx]
-        fisttp DWORD [projected_points+ebx]
+    mov edi, [eax+ebx]      ; from
+    mov esi, [eax+ebx+4]    ; to
 
-        fld DWORD [projected_points+ebx+4]
-        fisttp DWORD [projected_points+ebx+4]
+    movss xmm0, [projected_points+4*edi]		; from x
+	movss xmm1, [projected_points+4+4*edi]		; from y
+	movss xmm2, [projected_points+4*esi]		; to x
+	movss xmm3, [projected_points+4+4*esi]		; to y
 
-        mov edi, [projected_points+ebx]
-        mov esi, [projected_points+ebx+4]
+    movss xmm4, xmm2    ;dx = x2
+    movss xmm5, xmm3    ;dy = y2
 
+    subss xmm4, xmm0    ;dx = x2-x1
+    subss xmm5, xmm1    ;dy = y2-y1
+
+    movss xmm6, xmm4
+    movss xmm7, xmm5
+
+    pslld  xmm6, 1  ;abs
+    psrld  xmm6, 1
+
+    pslld  xmm7, 1
+    psrld  xmm7, 1
+
+    comiss xmm7, xmm6
+    jle .skip           ; step = dx
+    movss xmm6, xmm7    ; step = dy
+    .skip:
+
+    divss xmm4, xmm6
+    divss xmm5, xmm6
+
+    ;load some with float 0 to iterate
+    .inner_loop:
+        addss xmm0, xmm4
+        addss xmm1, xmm5
+
+        cvtss2si edi, xmm0
+        cvtss2si esi, xmm1
+
+        .hey:
         shl esi, 9
 
         add esi, edi
@@ -224,13 +286,23 @@ draw:
         mov edi, esi    ;mul 3
         shl esi, 1
         add esi, edi
-;todo add bounds check on the calculated address to prevent segfaults
+    ;    ;todo add bounds check on the calculated address to prevent segfaults
+
+
+        push eax
+        mov eax, [ebp+12]
+        add eax, 54
         mov [eax+esi], BYTE 0xff
         mov [eax+esi+1], BYTE 0xff
         mov [eax+esi+2], BYTE 0xff
 
-        cmp ebx, 0
-        jnz outer_loop_3
+        pop eax
+
+    cmp ebx, 8
+    jne .outer_loop
+
+
+
 
 	pop edi
 	pop esi

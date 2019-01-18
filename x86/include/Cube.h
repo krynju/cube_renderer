@@ -6,8 +6,8 @@ struct Point {
 };
 
 struct Connection {
-    unsigned int from;
-    unsigned int to;
+    int from;
+    int to;
 };
 
 

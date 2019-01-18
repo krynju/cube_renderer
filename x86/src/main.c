@@ -8,7 +8,7 @@
 #define SCREEN_WIDTH 512
 #define SCREEN_HEIGHT 512
 #define CUBE_SIDE 100.0
-#define CUBE_HALF_SIDE (CUBE_SIDE/2)
+#define CUBE_HALF_SIDE (CUBE_SIDE/2.0)
 
 
 extern int render(void *adr, unsigned char *output);
@@ -37,7 +37,7 @@ struct Cube cube = {
                 [6]={-CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
                 [7]={CUBE_HALF_SIDE, CUBE_HALF_SIDE, -CUBE_HALF_SIDE, 1},
         },
-        .position_vector={0.0, 0.0, -100},
+        .position_vector={0.0, 0.0, -200},
         .rotation_vector={0.0, 0.0, 0.0},
         .connections={
                 [0]={0, 3}, [1]={0, 5}, [2]={0, 6}, [3]={1, 3}, [4]={1, 4}, [5]={1, 6},
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
         gBMP = SDL_LoadBMP_RW(SDL_RWFromConstMem(output, BMP_SIZE), 1);
         SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
         SDL_UpdateWindowSurface(window);
-        SDL_Delay(10);
+        SDL_Delay(15);
         calculate_new_frame();
         SDL_FreeSurface(gBMP);
         while (SDL_PollEvent(&event)) {
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
 }
 
 void calculate_new_frame() {
-    float pos_speed = 1;
+    float pos_speed = 2;
     float rot_speed = 0.05;
     cube.position_vector[0] = cube.position_vector[0] + pos_speed * (key_table[3] - key_table[1]);
     cube.position_vector[1] = cube.position_vector[1] + pos_speed * (key_table[0] - key_table[2]);
