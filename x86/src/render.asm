@@ -10,13 +10,14 @@ float1: dd 1.0
 
 section .bss
 points: resd 32
+        align 16
 projected_points: resd 16
 sine: resd 3
 cosine: resd 3
 
-temp:resd 1
 section .text
 global _render
+
 _render:
 	push ebp
 	mov ebp, esp
@@ -26,7 +27,7 @@ _render:
 	push edi
 
 
-calc_trigs:
+calculate_trigs:
     mov eax, [ebp+8]
 
     fld DWORD [eax+140]         ;push x rot to fpu stack
@@ -52,12 +53,12 @@ calc_trigs:
 
 fill_position_vector:
     mov eax, [ebp+8]
-    mov ebx, DWORD [eax+128]
-    mov [matrix + 12], DWORD ebx
+    mov ebx, [eax+128]
+    mov [matrix + 12], ebx
     mov ebx, [eax+132]
-    mov [matrix + 28], DWORD ebx
+    mov [matrix + 28], ebx
     mov ebx, [eax+136]
-    mov [matrix + 44], DWORD ebx
+    mov [matrix + 44], ebx
 
 fill_rotation_matrix:
     movss xmm2, [sine]                      ;sin(x)
@@ -119,66 +120,46 @@ fill_rotation_matrix:
     mulss xmm0, xmm5				        ; a33 = cos(x)*cos(y)
     movss [matrix+40], xmm0 			    ; a33 store
 
-
-
-
-
-matrix_times_vertices:
+vertices_transformation:
 	mov eax, [ebp + 8]
 	mov ebx, 128
     .outer_loop:
-
-;todo implement this matrix x vector multiplication
-; xmm0 - wektor do pomnożenia
-; xmm4..7 - macierz 4x4
-;movps xmm3, xmm0
-;mulps xmm3, xmm7 ; 4 składniki 4. elementu
-;movps xmm2, xmm0
-;mulps xmm2, xmm6 ; 4 składniki 3. elementu
-;movps xmm1, xmm0
-;mulps xmm1, xmm5 ; 4 składniki 2. elementu
-;mulps xmm0, xmm4 ; 4 składniki 1. elementu
-;haddps xmm2, xmm3 ; po 2 składniki 4. i 3. elementu
-;haddps xmm0, xmm1 ; po 2 składniki 2. i 1. elementu
-;haddps xmm0, xmm2
-; xmm0 - wynik
-
         sub ebx, 16
-        movaps xmm1, [eax + ebx]        ;load vertex vector
+        movaps xmm0, [eax + ebx]        ; load vertex vector
 
-        movaps xmm0, [matrix]           ;load transformation matrix row
-        mulps xmm0, xmm1
-        haddps xmm0, xmm0
-        haddps xmm0, xmm0
-        movd [points + ebx], xmm0
+        movaps xmm4, [matrix]           ; load transformation matrix rows
+        movaps xmm5, [matrix+16]
+        movaps xmm6, [matrix+32]
+        movaps xmm7, [matrix+48]
 
-        movaps xmm0, [matrix+16]
-        mulps xmm0, xmm1
-        haddps xmm0, xmm0
-        haddps xmm0, xmm0
-        movd [points+4+ebx], xmm0
+        movaps xmm3, xmm0   ; copy vector
+        mulps xmm3, xmm7    ; row4*vector
+        movaps xmm2, xmm0   ; copy vector
+        mulps xmm2, xmm6    ; row3*vector
+        haddps xmm2, xmm3   ; xmm2 =
+        ; | xmm2[127:96]+xmm2[95:64] | xmm2[63:31]+xmm2[31:0] | xmm3[127:96]+xmm3[95:64] | xmm3[63:31] + xmm3[31:0] |
 
-        movaps xmm0, [matrix+32]
-        mulps xmm0, xmm1
-        haddps xmm0, xmm0
-        haddps xmm0, xmm0
-        movd [points+8+ebx], xmm0
+        movaps xmm1, xmm0   ; copy vector
+        mulps xmm1, xmm5    ; row2*vector
+        mulps xmm0, xmm4    ; row1*vector
+        haddps xmm0, xmm1   ; xmm0 =
+        ; | xmm0[127:96]+xmm0[95:64] | xmm0[63:31]+xmm0[31:0] | xmm1[127:96]+xmm1[95:64] | xmm1[63:31] + xmm1[31:0] |
 
-        movaps xmm0, [matrix+48]
-        mulps xmm0, xmm1
-        haddps xmm0, xmm0
-        haddps xmm0, xmm0
-        movd [points+12+ebx], xmm0
+        haddps xmm0, xmm2
+        ; | xmm0[127:64]+xmm0[63:0] | xmm1[127:64]+xmm1[63:0] | xmm2[127:64]+xmm2[63:0] | xmm3[127:64]+xmm3[63:0] |
+        ; xmm0 = | xmm0[127:0] | xmm1[127:0] | xmm2[127:0] | xmm3[127:0] |
+
+        movaps [points + ebx], xmm0 ; load the transformed vector to memory
 
         cmp ebx, 0
         jnz .outer_loop
 
-projecting:
+projecting_vertices:
     mov eax, 128
     mov ebx, 64
 
     movss xmm4, [half_size]
-    outer_loop_2:
+    .loop:
         sub eax, 16
         sub ebx, 8
 
@@ -199,79 +180,78 @@ projecting:
         movss [projected_points+4+ebx], xmm1
 
         cmp eax, 0
-        jnz outer_loop_2
+        jnz .loop
 
 
 
 draw_lines:
-    mov eax, [ebp+8]                ; load cube struct address
-    add eax, 152                    ; add offset for
-    mov edx, [ebp+12]               ; load bitmap address
-    add edx, 54                     ; add header offset
-    movss xmm6, [float1]            ; load float 1.0 into a register for fast incrementing
+    mov eax, [ebp+8]                    ; load cube struct address
+    add eax, 152                        ; add offset for
+    mov edx, [ebp+12]                   ; load bitmap address
+    add edx, 54                         ; add header offset
+    movss xmm6, [float1]                ; load float 1.0 into a register for fast incrementing
 
-    mov ebx, 96                     ; load connections size for offsetting
+    mov ebx, 96                         ; load connections size for offsetting
     .outer_loop:
-    sub ebx, 8                      ; decrement the connections offset
+        sub ebx, 8                      ; decrement the connections offset
 
-    mov edi, [eax+ebx]              ; load index of source vertex
-    mov esi, [eax+ebx+4]            ; load index of destination vertex
+        mov edi, [eax+ebx]              ; load index of source vertex
+        mov esi, [eax+ebx+4]            ; load index of destination vertex
 
-    movss xmm0, [projected_points+8*edi]        ; load source vertex projected x cord
-    movss xmm1, [projected_points+8*edi+4]      ; load source vertex projected y cord
-    movss xmm2, [projected_points+8*esi]        ; load destination vertex projected x cord
-    movss xmm3, [projected_points+8*esi+4]      ; load destination vertex projected y cord
+        movss xmm0, [projected_points+8*edi]        ; load source vertex projected x cord
+        movss xmm1, [projected_points+8*edi+4]      ; load source vertex projected y cord
+        movss xmm2, [projected_points+8*esi]        ; load destination vertex projected x cord
+        movss xmm3, [projected_points+8*esi+4]      ; load destination vertex projected y cord
 
-    subss xmm2, xmm0                ; dx = x_d - x_s
-    subss xmm3, xmm1                ; dy = y_d - y_1
+        subss xmm2, xmm0                ; dx = x_d - x_s
+        subss xmm3, xmm1                ; dy = y_d - y_1
 
-    movss xmm4, xmm2                ; move dx to new register
-    movss xmm5, xmm3                ; move dy to new register
+        movss xmm4, xmm2                ; move dx to new register
+        movss xmm5, xmm3                ; move dy to new register
 
-    pslld  xmm4, 1                  ; abs(dx)
-    psrld  xmm4, 1
+        pslld  xmm4, 1                  ; abs(dx)
+        psrld  xmm4, 1
 
-    pslld  xmm5, 1                  ; abs(dy)
-    psrld  xmm5, 1
+        pslld  xmm5, 1                  ; abs(dy)
+        psrld  xmm5, 1
 
-    comiss xmm4, xmm5               ; pick the larger absolute value delta, step = max(abs(dx),abs(dy))
-    ja .skip                        ; step = abs(dx)
-    movss xmm4, xmm5                ; step = abs(dy)
-    .skip:
+        comiss xmm4, xmm5               ; pick the larger absolute value delta, step = max(abs(dx),abs(dy))
+        ja .skip                        ; step = abs(dx)
+        movss xmm4, xmm5                ; step = abs(dy)
+        .skip:
 
-    divss xmm2, xmm4                ; x_inc = dx/step
-    divss xmm3, xmm4                ; y_inc = dy/step
+        divss xmm2, xmm4                ; x_inc = dx/step
+        divss xmm3, xmm4                ; y_inc = dy/step
 
-    xorps xmm5, xmm5                ; zero       xmm5
-    .inner_loop:
-        cvtss2si edi, xmm0          ; convert x float to int32
-        cvtss2si esi, xmm1          ; convert y float to int32
+        xorps xmm5, xmm5                ; zero       xmm5
+        .inner_loop:
+            cvtss2si edi, xmm0          ; convert x float to int32
+            cvtss2si esi, xmm1          ; convert y float to int32
 
-        shl esi, 9                  ; y*=512
-        add esi, edi                ; y+=x
-        lea esi, [esi*3]            ; y*=3
+            shl esi, 9                  ; y*=512
+            add esi, edi                ; y+=x
+            lea esi, [esi*3]            ; y*=3
 
-        cmp esi, 786486-54          ; check boundaries to prevent segfaults
-        jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
-        cmp esi, 0
-        jl  .skip_pixel_draw
+            cmp esi, 786486-54          ; check boundaries to prevent segfaults
+            jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
+            cmp esi, 0
+            jl  .skip_pixel_draw
 
-        mov [edx+esi], BYTE 0xff    ; fill red channel
-        mov [edx+esi+1], BYTE 0xff  ; fill green channel
-        mov [edx+esi+2], BYTE 0xff  ; fill blue channel
+            mov [edx+esi], BYTE 0xff    ; fill red channel
+            mov [edx+esi+1], BYTE 0xff  ; fill green channel
+            mov [edx+esi+2], BYTE 0xff  ; fill blue channel
 
-        .skip_pixel_draw:
+            .skip_pixel_draw:
 
-        addss xmm0, xmm2            ; x += x_inc
-        addss xmm1, xmm3            ; y += y_inc
+            addss xmm0, xmm2            ; x += x_inc
+            addss xmm1, xmm3            ; y += y_inc
 
+            addss xmm5, xmm6            ; x += 1.0
+            comiss xmm5, xmm4           ; check if less than step
+            jb .inner_loop
 
-        addss xmm5, xmm6            ; x += 1.0
-        comiss xmm5, xmm4           ; check if less than step
-        jb .inner_loop
-
-    cmp ebx,0                       ; check if all connections were drawn
-    jne .outer_loop
+        cmp ebx,0                       ; check if all connections were drawn
+        jne .outer_loop
 
 epilogue:
 	pop edi
