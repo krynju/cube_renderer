@@ -12,5 +12,5 @@ set(CMAKE_ASM-NASM_FLAGS "-f elf32 -g -F")
 set(CMAKE_C_FLAGS "-m32 -o0 -g")
 
 add_executable(cube_renderer src/main.c src/render.asm include/Cube.h)
-target_link_libraries(cube_renderer ${SDL2_LIBRARY})
+target_link_libraries(cube_renderer -lmingw32 -lSDL2main -lSDL2)
 
