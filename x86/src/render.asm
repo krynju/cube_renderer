@@ -157,27 +157,28 @@ vertices_transformation:
 projecting_vertices:
     mov eax, 128
     mov ebx, 64
-
+    movss xmm5, [distance]
+    shufps xmm5, xmm5, 0x00   ; fill xmm5 with distance
     movss xmm4, [half_size]
+    shufps xmm4, xmm4, 0x00   ; fill xmm4 with 256.0's
     .loop:
         sub eax, 16
         sub ebx, 8
 
-        movss xmm0, [points+eax]
-        movss xmm1, [points+eax+4]
-        movss xmm2, [points+eax+8]
+        movaps xmm0, [points+eax]   ; load xmm0 with x y z 1
+        shufps xmm1, xmm0, 0xAA     ; load xmm1 with 0 0 z z
+        shufps xmm1, xmm1, 0xAA     ; load xmm1 with z z z z
 
-        movss xmm3, [distance]
-        divss xmm3, xmm2
+        movaps xmm3, xmm5           ; copy distance register to xmm3
+        divps xmm3, xmm1            ; distance / z
 
-        mulss xmm0, xmm3
-        mulss xmm1, xmm3
+        mulps xmm0, xmm3            ; xmm0 vector times distance/z
 
-        addss xmm0, xmm4
-        addss xmm1, xmm4
+        addps xmm0, xmm4            ; add 256.0 filled vector
 
-        movss [projected_points+ebx], xmm0
-        movss [projected_points+4+ebx], xmm1
+        movss [projected_points+ebx], xmm0      ; save projected x
+        shufps xmm0, xmm0, 0xE5                 ; shuffle projected y onto [31:0]
+        movss [projected_points+4+ebx], xmm0    ; save projected y
 
         cmp eax, 0
         jnz .loop
