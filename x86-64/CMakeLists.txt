@@ -7,10 +7,10 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIR} include)
 
 enable_language(ASM-NASM)
-set(CMAKE_ASM-NASM_FLAGS "-f elf64 -g -F ")
+set(CMAKE_ASM-NASM_FLAGS "-f win64 -g -F ")
 
 set(CMAKE_C_FLAGS "-m64 -o0 -g ")
 
 add_executable(cube_renderer src/main.c src/render.asm include/Cube.h)
-target_link_libraries(cube_renderer  -lSDL2main -lSDL2 -no-pie)
+target_link_libraries(cube_renderer  ${SDL2_LIBRARIES} )
 

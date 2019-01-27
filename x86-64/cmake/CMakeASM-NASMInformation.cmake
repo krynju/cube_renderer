@@ -6,7 +6,7 @@ SET(CMAKE_ASM${ASM_DIALECT}_SOURCE_FILE_EXTENSIONS nasm;nas;asm)
 # -list at http://www.cmake.org/pipermail/cmake/2005-November/007478.html
 
 
-SET(CMAKE_ASM-NASM_COMPILER_ARG1 "-f elf64")
+SET(CMAKE_ASM-NASM_COMPILER_ARG1 "-f win64")
 
 
 # This section exists to override the one in CMakeASMInformation.cmake

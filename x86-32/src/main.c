@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
 
 void calculate_new_frame() {
     const float pos_speed = 2;
-    const float rot_speed = 0.025;
+    const float rot_speed = 0.04;
     cube.position_vector[0] = cube.position_vector[0] + pos_speed * (key_table[3] - key_table[1]);
     cube.position_vector[1] = cube.position_vector[1] + pos_speed * (key_table[0] - key_table[2]);
     cube.position_vector[2] = cube.position_vector[2] + pos_speed * (key_table[10] - key_table[8]);

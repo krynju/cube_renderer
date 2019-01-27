@@ -19,16 +19,20 @@ section .text
 global render
 
 render:
-	push rbp
-	mov rbp, rsp
+;	push rbp
+;	mov rbp, rsp
+;;	push rbx
 
-	push rbx
+    mov    [RSP + 8], RCX
+    push   R15
+    push   R14
+    push   R13
 
-    ;rdi 1 arg
-    ;rsi 2 arg
+    ;rdi 1 arg ; rcx on windows
+    ;rsi 2 arg ; rdx on windows
 
 calculate_trigs:
-    mov rax, rdi
+    mov rax, rcx
 
     fld DWORD [rax+140]         ;push x rot to fpu stack
     fsin
@@ -52,7 +56,7 @@ calculate_trigs:
     fstp DWORD [cosine+8]        ;save cos(z)
 
 fill_position_vector:
-    mov rax, rdi
+    mov rax, rcx
     mov rbx, [rax+128]
     mov [matrix + 12], rbx
     mov rbx, [rax+132]
@@ -121,7 +125,7 @@ fill_rotation_matrix:
     movss [matrix+40], xmm0 			    ; a33 store
 
 vertices_transformation:
-	mov rax, rdi
+	mov rax, rcx
 	mov rbx, 128
     .outer_loop:
         sub rbx, 16
@@ -186,9 +190,9 @@ projecting_vertices:
 
 
 draw_lines:
-    mov r8, rdi                    ; load cube struct address
+    mov r8, rcx                    ; load cube struct address
     add r8, 152                        ; add offset for
-    mov r9, rsi                   ; load bitmap address
+    mov r9, rdx                   ; load bitmap address
     add r9, 54                         ; add header offset
     movss xmm6, [float1]                ; load float 1.0 into a register for fast incrementing
 
@@ -197,15 +201,15 @@ draw_lines:
         sub rbx, 8                      ; decrement the connections offset
 
         xor rax, rax
-        xor rdx, rdx
+        xor rsi, rsi
 
         mov eax, DWORD[r8+rbx]              ; load index of source vertex
-        mov edx, DWORD[r8+rbx+4]            ; load index of destination vertex
+        mov esi, DWORD[r8+rbx+4]            ; load index of destination vertex
 
         movss xmm0, [projected_points+8*rax]        ; load source vertex projected x cord
         movss xmm1, [projected_points+8*rax+4]      ; load source vertex projected y cord
-        movss xmm2, [projected_points+8*rdx]        ; load destination vertex projected x cord
-        movss xmm3, [projected_points+8*rdx+4]      ; load destination vertex projected y cord
+        movss xmm2, [projected_points+8*rsi]        ; load destination vertex projected x cord
+        movss xmm3, [projected_points+8*rsi+4]      ; load destination vertex projected y cord
 
         subss xmm2, xmm0                ; dx = x_d - x_s
         subss xmm3, xmm1                ; dy = y_d - y_1
@@ -230,20 +234,20 @@ draw_lines:
         xorps xmm5, xmm5                ; zero       xmm5
         .inner_loop:
             cvtss2si eax, xmm0          ; convert x float to int32
-            cvtss2si edx, xmm1          ; convert y float to int32
+            cvtss2si esi, xmm1          ; convert y float to int32
 
-            shl rdx, 9                  ; y*=512
-            add rdx, rax                ; y+=x
-            lea rdx, [rdx*3]            ; y*=3
+            shl rsi, 9                  ; y*=512
+            add rsi, rax                ; y+=x
+            lea rsi, [rsi*3]            ; y*=3
 
-            cmp rdx, 786486-54          ; check boundaries to prevent segfaults
+            cmp rsi, 786486-54          ; check boundaries to prevent segfaults
             jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
-            cmp rdx, 0
+            cmp rsi, 0
             jl  .skip_pixel_draw
 
-            mov [r9+rdx], BYTE 0xff    ; fill red channel
-            mov [r9+rdx+1], BYTE 0xff  ; fill green channel
-            mov [r9+rdx+2], BYTE 0xff  ; fill blue channel
+            mov [r9+rsi], BYTE 0xff    ; fill red channel
+            mov [r9+rsi+1], BYTE 0xff  ; fill green channel
+            mov [r9+rsi+2], BYTE 0xff  ; fill blue channel
 
             .skip_pixel_draw:
 
@@ -258,8 +262,7 @@ draw_lines:
         jne .outer_loop
 
 epilogue:
-	pop rbx
-
-	mov rsp, rbp
-	pop rbp
-	ret
+    pop      R13
+    pop      R14
+    pop      R15
+    ret
