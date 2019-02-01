@@ -1,3 +1,1 @@
-#x86
-
-todo: decide if 32bit or 64bit or both
+# cube_renderer_x86-64 
