@@ -9,6 +9,8 @@ The goal of this project is to render a cube in 3d space using assembly.
 - prepare cmake for linux builds (both x86)
 - read into avx and switch to it
 - figure out how to get rid of nasty sin and cos calculations and rotation matrix filling 
+- test clang
+- do performance testing inbetween bigger changes to observe improvements
 
 ## x86
 
