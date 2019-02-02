@@ -2,6 +2,8 @@
 
 The goal of this project is to render a cube in 3d space using assembly. 
 
+![gif](resources/gif_1.gif)
+
 ## todo
 
 - restructure the drawn object to allow drawing different shapes 
