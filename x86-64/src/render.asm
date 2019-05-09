@@ -64,12 +64,12 @@ fill_position_vector:
     mov [matrix + 44], rbx
 
 fill_rotation_matrix:
-    movss xmm2, [sine]                      ;sin(x)
-    movss xmm3, [cosine]                    ;cos(x)
-    movss xmm4, [sine+4]                    ;sin(y)
-    movss xmm5, [cosine+4]                  ;cos(y)
-    movss xmm6, [sine+8]                    ;sin(z)
-    movss xmm7, [cosine+8]                  ;cos(z)
+    movss xmm2, [sine]                      ; sin(x)
+    movss xmm3, [cosine]                    ; cos(x)
+    movss xmm4, [sine+4]                    ; sin(y)
+    movss xmm5, [cosine+4]                  ; cos(y)
+    movss xmm6, [sine+8]                    ; sin(z)
+    movss xmm7, [cosine+8]                  ; cos(z)
 
     movss xmm0, xmm5
     mulss xmm0, xmm7                        ; a11 = cos(y)*cos(z)
@@ -128,9 +128,9 @@ vertices_transformation:
 	mov rbx, 128
     .outer_loop:
     sub rbx, 16
-    movaps xmm0, [rax + rbx]        ; load vertex vector
+    movaps xmm0, [rax + rbx]        		; load vertex vector
 
-    movaps xmm4, [matrix]           ; load transformation matrix rows
+    movaps xmm4, [matrix]           		; load transformation matrix rows
     movaps xmm5, [matrix+16]
     movaps xmm6, [matrix+32]
     movaps xmm7, [matrix+48]
