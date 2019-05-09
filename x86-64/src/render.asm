@@ -6,14 +6,16 @@ matrix:             dd  1.0, 0, 0, 0,       \
 
 distance:           dd  -100.0
 half_size:          dd  256.0
-float1:             dd 1.0
+float1:             dd 	1.0
+bitmap_size:		dq	1048576
 
 section .bss
-points:             resd 32
-                    align 16
-projected_points:   resd 16
-sine:               resd 3
-cosine:             resd 3
+points:             resd 	32
+                    align 	16
+projected_points:   resd 	16
+					align 	16
+sine:               resd 	3
+cosine:             resd 	3
 
 section .text
 global render
@@ -23,10 +25,11 @@ render:
     push r15
     push r14
     push r13
+	push r12
+	push rbx
 
     ;rdi 1 arg ; rcx on windows
-    ;rsi 2 arg ; rdx on windows
-
+    ;r13 2 arg ; rdx on windows
 calculate_trigs:
     mov rax, rcx
 
@@ -56,7 +59,7 @@ fill_position_vector:
     mov rbx, [rax+128]
     mov [matrix + 12], rbx
     mov rbx, [rax+132]
-    mov [matrix + 28], rbx
+	mov [matrix + 28], rbx
     mov rbx, [rax+136]
     mov [matrix + 44], rbx
 
@@ -189,24 +192,25 @@ draw_lines:
     mov r8, rcx		; load cube struct address
     add r8, 152		; add offset for
     mov r9, rdx		; load bitmap address
-    add r9, 54		; add header offset
     movss xmm6, [float1]	; load float 1.0 into a register for fast incrementing
 
-    mov rbx, 96             ; load connections size for offsetting
+    mov r14, 96             ; load connections size for offsetting
     .outer_loop:
-    sub rbx, 8              ; decrement the connections offset
+    sub r14, 8              ; decrement the connections offset
 
     xor rax, rax
-    xor rsi, rsi
+    xor rbx, rbx
 
-    mov eax, DWORD[r8+rbx]              ; load index of source vertex
-    mov esi, DWORD[r8+rbx+4]            ; load index of destination vertex
+    mov eax, DWORD[r8+r14]              ; load index of source vertex
+    mov ebx, DWORD[r8+r14+4]            ; load index of destination vertex
 
+	.outer_loop20:
     movss xmm0, [projected_points+8*rax]        ; load source vertex projected x cord
     movss xmm1, [projected_points+8*rax+4]      ; load source vertex projected y cord
-    movss xmm2, [projected_points+8*rsi]        ; load destination vertex projected x cord
-    movss xmm3, [projected_points+8*rsi+4]      ; load destination vertex projected y cord
+    movss xmm2, [projected_points+8*rbx]        ; load destination vertex projected x cord
+    movss xmm3, [projected_points+8*rbx+4]      ; load destination vertex projected y cord
 
+	.outer_loop3:
     subss xmm2, xmm0                ; dx = x_d - x_s
     subss xmm3, xmm1                ; dy = y_d - y_1
 
@@ -228,22 +232,22 @@ draw_lines:
     divss xmm3, xmm4                ; y_inc = dy/step
 
     xorps xmm5, xmm5                ; zero       xmm5
-    .inner_loop:
+
+
+	.inner_loop:
     cvtss2si eax, xmm0          ; convert x float to int32
-    cvtss2si esi, xmm1          ; convert y float to int32
+    cvtss2si ebx, xmm1          ; convert y float to int32
 
-    shl rsi, 9                  ; y*=512
-    add rsi, rax                ; y+=x
-    lea rsi, [rsi*3]            ; y*=3
+    shl rbx, 9                  ; y*=512
+    add rbx, rax                ; y+=x
+    lea rbx, [rbx*4]            ; y*=3
 
-    cmp rsi, 786486-54          ; check boundaries to prevent segfaults
+    cmp rbx, bitmap_size          ; check boundaries to prevent segfaults
     jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
-    cmp rsi, 0
+    cmp rbx, 0
     jl  .skip_pixel_draw
 
-    mov [r9+rsi], BYTE 0xff    ; fill red channel
-    mov [r9+rsi+1], BYTE 0xff  ; fill green channel
-    mov [r9+rsi+2], BYTE 0xff  ; fill blue channel
+	mov [r9+rbx], DWORD 0xffffffff
 
     .skip_pixel_draw:
 
@@ -254,11 +258,14 @@ draw_lines:
     comiss xmm5, xmm4           ; check if less than step
     jb .inner_loop
 
-    cmp rbx,0                   ; check if all connections were drawn
+
+    cmp r14,0                   ; check if all connections were drawn
     jne .outer_loop
 
 epilogue:
-    pop      R13
-    pop      R14
-    pop      R15
+	pop	rbx
+	pop	R12
+    pop R13
+    pop R14
+    pop R15
     ret

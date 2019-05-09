@@ -11,11 +11,16 @@ struct Connection {
 }__attribute__ ((aligned (4)));
 
 
+struct Wall {
+    int wall_indices[4];
+};
+
 struct Cube {
     struct Point vertices[8];
     float position_vector[3];
     float rotation_vector[3];
     struct Connection connections[12];
+    struct Wall walls[6];
 
 }__attribute__ ((aligned (16)));
 

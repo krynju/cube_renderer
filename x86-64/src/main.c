@@ -3,16 +3,16 @@
 #include <stdlib.h>
 #include "Cube.h"
 
-#define BMP_SIZE 786486
 #define SCREEN_WIDTH 512
 #define SCREEN_HEIGHT 512
+#define BMP_SIZE SCREEN_WIDTH*SCREEN_HEIGHT
 #define CUBE_SIDE 100.0
 #define CUBE_HALF_SIDE (CUBE_SIDE/2.0)
 
 #define FRAME_TIME 10
 
 
-extern int render(void *adr, unsigned char *output);
+extern int render(void *adr, unsigned int *output);
 
 void handle_keys_down(SDL_Event event);
 
@@ -22,10 +22,7 @@ void calculate_new_frame();
 
 volatile unsigned short int key_table[12] = {0};
 
-unsigned char output[BMP_SIZE] = {0x42, 0x4d, 0x36, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00,
-                                  0x28, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x00,
-                                  0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+unsigned int output[BMP_SIZE];
 
 struct Cube cube = {
         .vertices={
@@ -43,6 +40,14 @@ struct Cube cube = {
         .connections={
                 [0]={0, 3}, [1]={0, 5}, [2]={0, 6}, [3]={1, 3}, [4]={1, 4}, [5]={1, 6},
                 [6]={2, 3}, [7]={2, 4}, [8]={2, 5}, [9]={4, 7}, [10]={5, 7}, [11]={6, 7}
+        },
+        .walls={
+                [0]={2,4,7,5},
+                [1]={4,1,6,7},
+                [2]={1,3,0,6},
+                [3]={3,2,5,0},
+                [4]={7,6,0,5},
+                [5]={1,4,2,3}
         }
 };
 
@@ -63,15 +68,15 @@ int main(int argc, char *argv[]) {
 
     unsigned int quit = 0;
     unsigned int last_frame = 0;
-    while (!quit) {
 
+    while (!quit) {
         render(&cube, output);
 
-        gBMP = SDL_LoadBMP_RW(SDL_RWFromConstMem(output, BMP_SIZE), 1);
+        gBMP = SDL_CreateRGBSurfaceFrom((void*)output, 512, 512, 32, 4 * 512,0, 0, 0, 0);
+
         SDL_BlitSurface(gBMP, NULL, screenSurface, NULL);
         SDL_UpdateWindowSurface(window);
         last_frame = SDL_GetTicks();
-
 
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -91,7 +96,7 @@ int main(int argc, char *argv[]) {
 
         calculate_new_frame();
         SDL_FreeSurface(gBMP);
-        memset(output + 54, 0, BMP_SIZE - 54);
+        memset(output, 0, BMP_SIZE * 4);
         if (SDL_GetTicks() - last_frame < FRAME_TIME)
             SDL_Delay(last_frame + FRAME_TIME - SDL_GetTicks());
     }
@@ -151,6 +156,8 @@ void handle_keys_up(SDL_Event event) {
         case SDL_SCANCODE_H:
             key_table[11] = 0;
             break;
+        default:
+            break;
     }
 }
 
@@ -191,6 +198,8 @@ void handle_keys_down(SDL_Event event) {
             break;
         case SDL_SCANCODE_H:
             key_table[11] = 1;
+            break;
+        default:
             break;
     }
 }
