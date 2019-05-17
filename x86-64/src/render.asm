@@ -3,11 +3,14 @@ matrix:             dd  1.0, 0, 0, 0,       \
                         0, 1.0, 0, 0,       \
                         0, 0, 1.0, -200.0,  \
                         0, 0, 0, 1.0
+helper_v:			dd 0, 1.0, 2.0, 3.0
 
 distance:           dd  -100.0
 half_size:          dd  256.0
 float1:             dd 	1.0
 bitmap_size:		dq	1048576
+
+
 
 section .bss
 points:             resd 	32
@@ -187,6 +190,89 @@ projecting_vertices:
     jnz .loop
 
 
+rasterize:
+	xor rax, rax
+	xor rbx, rbx
+
+	mov r8, rcx		; load cube struct
+	add r8, 152
+	mov r9, rdx 	; load bitmap addr
+
+	mov r14, 16;96		; 6walls*4ints*4
+	.wall_loop:
+	sub r14, 16
+
+	mov r12, 512
+	.bitmap_loop_x:
+	sub r12, 1
+
+	mov r13, 512
+	.bitmap_loop_y:
+	sub r13, 4
+
+	vcvtsi2ss xmm14, r12
+	vcvtsi2ss xmm15, r13
+
+	vbroadcastss xmm14, xmm14
+	vbroadcastss xmm15, xmm15
+
+	movaps xmm13, [helper_v]
+
+	vaddps xmm15, xmm15, xmm13
+
+	mov eax, [r8 + r14 + 0]		; cube.walls[r14][0]
+	mov ebx, [r8 + r14 + 4]		; cube.walls[r14][1]
+
+	vbroadcastss xmm0, DWORD [projected_points + 2 * rax + 0]	; vector full of one vertexes x cords
+	vbroadcastss xmm1, DWORD [projected_points + 2 * rax + 4]	; vector full of one vertexes y cords
+
+	vbroadcastss xmm2, DWORD [projected_points + 2 * rbx + 0]
+	vbroadcastss xmm3, DWORD [projected_points + 2 * rbx + 4]
+
+
+	vsubps xmm14, xmm14, xmm0
+	vsubps xmm15, xmm15, xmm1
+
+	vsubps xmm2, xmm2, xmm0
+	vsubps xmm3, xmm3, xmm1
+
+	vmulps xmm14, xmm14, xmm3
+	vmulps xmm15, xmm15, xmm2
+
+	vsubps xmm14, xmm14, xmm15
+
+	vcmple_osps xmm9, xmm14, xmm9
+
+
+	mov rbx, r12
+	mov rax, r13
+
+	shl rbx, 9                  ; y*=512
+	add rbx, rax                ; y+=x
+	lea rbx, [rbx*4]            ; y*=4
+
+;    cmp rbx, bitmap_size          ; check boundaries to prevent segfaults
+;    jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
+;    cmp rbx, 0
+;    jl  .skip_pixel_draw
+
+	vmovaps [r9+rbx], xmm9
+
+	.skip_pixel_draw:
+
+	.flag:
+
+	cmp r13, 0
+	jne .bitmap_loop_y
+
+	cmp r12, 0
+	jne .bitmap_loop_x
+
+
+
+
+    cmp r14,0
+    jne .wall_loop
 
 draw_lines:
     mov r8, rcx		; load cube struct address
@@ -204,13 +290,11 @@ draw_lines:
     mov eax, DWORD[r8+r14]              ; load index of source vertex
     mov ebx, DWORD[r8+r14+4]            ; load index of destination vertex
 
-	.outer_loop20:
     movss xmm0, [projected_points+8*rax]        ; load source vertex projected x cord
     movss xmm1, [projected_points+8*rax+4]      ; load source vertex projected y cord
     movss xmm2, [projected_points+8*rbx]        ; load destination vertex projected x cord
     movss xmm3, [projected_points+8*rbx+4]      ; load destination vertex projected y cord
 
-	.outer_loop3:
     subss xmm2, xmm0                ; dx = x_d - x_s
     subss xmm3, xmm1                ; dy = y_d - y_1
 
@@ -240,7 +324,7 @@ draw_lines:
 
     shl rbx, 9                  ; y*=512
     add rbx, rax                ; y+=x
-    lea rbx, [rbx*4]            ; y*=3
+    lea rbx, [rbx*4]            ; y*=4
 
     cmp rbx, bitmap_size          ; check boundaries to prevent segfaults
     jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
