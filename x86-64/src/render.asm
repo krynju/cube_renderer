@@ -199,153 +199,125 @@ rasterize:
 
 	vxorps xmm7, xmm7, xmm7
 
-	mov r14, 16;96		; 6walls*4ints*4
+	mov r14, 0;96		; 6walls*4ints*4
 	.wall_loop:
-	sub r14, 16
 
-	mov r12, 512
+	mov r12, 0
 	.bitmap_loop_x:
-	sub r12, 1
 
-	mov r13, 512
+	mov r13, 0
 	.bitmap_loop_y:
-	sub r13, 4
 
+	vcvtsi2ss xmm4, r13				; p1 vector - x
+	vcvtsi2ss xmm5, r12				; p2 vector - y
+	vbroadcastss xmm4, xmm4			; p1 vector
+	vbroadcastss xmm5, xmm5			; p2 vector
+	movaps xmm0, [helper_v]
+	vaddps xmm4, xmm4, xmm0
 
-	vcvtsi2ss xmm14, r13				; p1 vector - x
-	vcvtsi2ss xmm15, r12				; p2 vector - y
-	vbroadcastss xmm14, xmm14			; p1 vector
-	vbroadcastss xmm15, xmm15			; p2 vector
-	movaps xmm13, [helper_v]
-	vaddps xmm14, xmm14, xmm13
-	xor rax, rax
-	xor rbx, rbx
-	mov eax, [r8 + r14 + 0]		; cube.walls[r14][0]
-	mov ebx, [r8 + r14 + 4]		; cube.walls[r14][1]
+	mov eax, [r8 + r14 + 0]	; cube.walls[r14][0]
+	mov ebx, [r8 + r14 + 4]	; cube.walls[r14][1]
 	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
 	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
 	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
 	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 
-	vsubps xmm14, xmm14, xmm0	; p1 - u1
-	vsubps xmm15, xmm15, xmm1	; p2 - u2
-	vsubps xmm2, xmm2, xmm0		; v1 - u1
-	vsubps xmm3, xmm3, xmm1		; v2 - u2
-	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
-	vxorps xmm9, xmm9, xmm9
-	vcmple_osps xmm9, xmm14, xmm9
-	movaps xmm8, xmm9
+	vsubps xmm2, xmm2, xmm0	; v1 - u1
+	vsubps xmm3, xmm3, xmm1	; v2 - u2
+	vsubps xmm0, xmm4, xmm0	; p1 - u1
+	vsubps xmm1, xmm5, xmm1	; p2 - u2
+	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 
-	vcvtsi2ss xmm14, r13				; p1 vector - x
-	vcvtsi2ss xmm15, r12				; p2 vector - y
-	vbroadcastss xmm14, xmm14			; p1 vector
-	vbroadcastss xmm15, xmm15			; p2 vector
-	movaps xmm13, [helper_v]
-	vaddps xmm14, xmm14, xmm13
-	xor rax, rax
-	xor rbx, rbx
-	mov eax, [r8 + r14 + 4]		; cube.walls[r14][0]
-	mov ebx, [r8 + r14 + 8]		; cube.walls[r14][1]
+	vcmple_osps xmm1, xmm0, xmm7
+	movaps xmm8, xmm1
+
+	mov eax, [r8 + r14 + 4]	; cube.walls[r14][1]
+	mov ebx, [r8 + r14 + 8]	; cube.walls[r14][2]
 	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
 	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
 	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
 	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 
-	vsubps xmm14, xmm14, xmm0	; p1 - u1
-	vsubps xmm15, xmm15, xmm1	; p2 - u2
-	vsubps xmm2, xmm2, xmm0		; v1 - u1
-	vsubps xmm3, xmm3, xmm1		; v2 - u2
-	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
-	vxorps xmm9, xmm9, xmm9
-	vcmple_osps xmm9, xmm14, xmm9
-	vandps xmm8, xmm9
+	vsubps xmm2, xmm2, xmm0	; v1 - u1
+	vsubps xmm3, xmm3, xmm1	; v2 - u2
+	vsubps xmm0, xmm4, xmm0	; p1 - u1
+	vsubps xmm1, xmm5, xmm1	; p2 - u2
+	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 
-	vcvtsi2ss xmm14, r13				; p1 vector - x
-	vcvtsi2ss xmm15, r12				; p2 vector - y
-	vbroadcastss xmm14, xmm14			; p1 vector
-	vbroadcastss xmm15, xmm15			; p2 vector
-	movaps xmm13, [helper_v]
-	vaddps xmm14, xmm14, xmm13
-	xor rax, rax
-	xor rbx, rbx
-	mov eax, [r8 + r14 + 8]		; cube.walls[r14][0]
-	mov ebx, [r8 + r14 + 12]		; cube.walls[r14][1]
+	vcmple_osps xmm1, xmm0, xmm7
+	vandps xmm8, xmm1
+
+
+	mov eax, [r8 + r14 + 8]	; cube.walls[r14][2]
+	mov ebx, [r8 + r14 + 12]; cube.walls[r14][3]
 	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
 	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
 	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
 	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 
-	vsubps xmm14, xmm14, xmm0	; p1 - u1
-	vsubps xmm15, xmm15, xmm1	; p2 - u2
-	vsubps xmm2, xmm2, xmm0		; v1 - u1
-	vsubps xmm3, xmm3, xmm1		; v2 - u2
-	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
-	vxorps xmm9, xmm9, xmm9
-	vcmple_osps xmm9, xmm14, xmm9
-	vandps xmm8, xmm9
+	vsubps xmm2, xmm2, xmm0	; v1 - u1
+	vsubps xmm3, xmm3, xmm1	; v2 - u2
+	vsubps xmm0, xmm4, xmm0	; p1 - u1
+	vsubps xmm1, xmm5, xmm1	; p2 - u2
+	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 
-	vcvtsi2ss xmm14, r13				; p1 vector - x
-	vcvtsi2ss xmm15, r12				; p2 vector - y
-	vbroadcastss xmm14, xmm14			; p1 vector
-	vbroadcastss xmm15, xmm15			; p2 vector
-	movaps xmm13, [helper_v]
-	vaddps xmm14, xmm14, xmm13
-	xor rax, rax
-	xor rbx, rbx
-	mov eax, [r8 + r14 + 12]		; cube.walls[r14][0]
-	mov ebx, [r8 + r14 + 0]		; cube.walls[r14][1]
+	vcmple_osps xmm1, xmm0, xmm7
+	vandps xmm8, xmm1
+
+
+	mov eax, [r8 + r14 + 12]; cube.walls[r14][3]
+	mov ebx, [r8 + r14 + 0]	; cube.walls[r14][0]
 	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
 	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
 	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
 	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 
-	vsubps xmm14, xmm14, xmm0	; p1 - u1
-	vsubps xmm15, xmm15, xmm1	; p2 - u2
-	vsubps xmm2, xmm2, xmm0		; v1 - u1
-	vsubps xmm3, xmm3, xmm1		; v2 - u2
-	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
-	vxorps xmm9, xmm9, xmm9
-	vcmple_osps xmm9, xmm14, xmm9
-	vandps xmm8, xmm9
+	vsubps xmm2, xmm2, xmm0	; v1 - u1
+	vsubps xmm3, xmm3, xmm1	; v2 - u2
+	vsubps xmm0, xmm4, xmm0	; p1 - u1
+	vsubps xmm1, xmm5, xmm1	; p2 - u2
+	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+
+	vcmple_osps xmm1, xmm0, xmm7
+	vandps xmm8, xmm1
 
 
 
-
-
-	; draw ------------
 	mov rbx, r12
-	mov rax, r13
 
 	shl rbx, 9                  ; y*=512
-	add rbx, rax                ; y+=x
+	add rbx, r13                ; y+=x
 	lea rbx, [rbx*4]            ; y*=4
 
     cmp rbx, bitmap_size
     jge .skip_pixel_draw
     cmp rbx, 0
     jl  .skip_pixel_draw
-	vmovaps [r9+rbx], xmm8
-	.skip_pixel_draw:
-	;----------------
 
-	cmp r13, 0
+	vmovaps xmm9, [r9 + rbx]
+	vorps	xmm8, xmm9
+	vmovaps [r9 + rbx], xmm8
+
+	.skip_pixel_draw:
+
+	add r13, 4
+	cmp r13, 512
 	jne .bitmap_loop_y
 
-	cmp r12, 0
+	add r12, 1
+	cmp r12, 512
 	jne .bitmap_loop_x
 
-
-
-
-    cmp r14,0
+	add r14, 16
+    cmp r14, 96
     jne .wall_loop
 
 draw_lines:
