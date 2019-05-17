@@ -197,6 +197,8 @@ rasterize:
 	add r8, 248
 	mov r9, rdx 	; load bitmap addr
 
+	vxorps xmm7, xmm7, xmm7
+
 	mov r14, 16;96		; 6walls*4ints*4
 	.wall_loop:
 	sub r14, 16
@@ -318,7 +320,7 @@ rasterize:
 
 
 
-
+	; draw ------------
 	mov rbx, r12
 	mov rax, r13
 
@@ -326,12 +328,13 @@ rasterize:
 	add rbx, rax                ; y+=x
 	lea rbx, [rbx*4]            ; y*=4
 
-    cmp rbx, bitmap_size          ; check boundaries to prevent segfaults
-    jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
+    cmp rbx, bitmap_size
+    jge .skip_pixel_draw
     cmp rbx, 0
     jl  .skip_pixel_draw
 	vmovaps [r9+rbx], xmm8
 	.skip_pixel_draw:
+	;----------------
 
 	cmp r13, 0
 	jne .bitmap_loop_y
