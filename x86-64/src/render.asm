@@ -191,11 +191,10 @@ projecting_vertices:
 
 
 rasterize:
-	xor rax, rax
-	xor rbx, rbx
+
 
 	mov r8, rcx		; load cube struct
-	add r8, 152
+	add r8, 248
 	mov r9, rdx 	; load bitmap addr
 
 	mov r14, 16;96		; 6walls*4ints*4
@@ -210,38 +209,114 @@ rasterize:
 	.bitmap_loop_y:
 	sub r13, 4
 
-	vcvtsi2ss xmm14, r12
-	vcvtsi2ss xmm15, r13
 
-	vbroadcastss xmm14, xmm14
-	vbroadcastss xmm15, xmm15
-
+	vcvtsi2ss xmm14, r13				; p1 vector - x
+	vcvtsi2ss xmm15, r12				; p2 vector - y
+	vbroadcastss xmm14, xmm14			; p1 vector
+	vbroadcastss xmm15, xmm15			; p2 vector
 	movaps xmm13, [helper_v]
-
-	vaddps xmm15, xmm15, xmm13
-
+	vaddps xmm14, xmm14, xmm13
+	xor rax, rax
+	xor rbx, rbx
 	mov eax, [r8 + r14 + 0]		; cube.walls[r14][0]
 	mov ebx, [r8 + r14 + 4]		; cube.walls[r14][1]
+	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 
-	vbroadcastss xmm0, DWORD [projected_points + 2 * rax + 0]	; vector full of one vertexes x cords
-	vbroadcastss xmm1, DWORD [projected_points + 2 * rax + 4]	; vector full of one vertexes y cords
-
-	vbroadcastss xmm2, DWORD [projected_points + 2 * rbx + 0]
-	vbroadcastss xmm3, DWORD [projected_points + 2 * rbx + 4]
-
-
-	vsubps xmm14, xmm14, xmm0
-	vsubps xmm15, xmm15, xmm1
-
-	vsubps xmm2, xmm2, xmm0
-	vsubps xmm3, xmm3, xmm1
-
-	vmulps xmm14, xmm14, xmm3
-	vmulps xmm15, xmm15, xmm2
-
-	vsubps xmm14, xmm14, xmm15
-
+	vsubps xmm14, xmm14, xmm0	; p1 - u1
+	vsubps xmm15, xmm15, xmm1	; p2 - u2
+	vsubps xmm2, xmm2, xmm0		; v1 - u1
+	vsubps xmm3, xmm3, xmm1		; v2 - u2
+	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vxorps xmm9, xmm9, xmm9
 	vcmple_osps xmm9, xmm14, xmm9
+	movaps xmm8, xmm9
+
+	vcvtsi2ss xmm14, r13				; p1 vector - x
+	vcvtsi2ss xmm15, r12				; p2 vector - y
+	vbroadcastss xmm14, xmm14			; p1 vector
+	vbroadcastss xmm15, xmm15			; p2 vector
+	movaps xmm13, [helper_v]
+	vaddps xmm14, xmm14, xmm13
+	xor rax, rax
+	xor rbx, rbx
+	mov eax, [r8 + r14 + 4]		; cube.walls[r14][0]
+	mov ebx, [r8 + r14 + 8]		; cube.walls[r14][1]
+	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
+
+	vsubps xmm14, xmm14, xmm0	; p1 - u1
+	vsubps xmm15, xmm15, xmm1	; p2 - u2
+	vsubps xmm2, xmm2, xmm0		; v1 - u1
+	vsubps xmm3, xmm3, xmm1		; v2 - u2
+	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vxorps xmm9, xmm9, xmm9
+	vcmple_osps xmm9, xmm14, xmm9
+	vandps xmm8, xmm9
+
+	vcvtsi2ss xmm14, r13				; p1 vector - x
+	vcvtsi2ss xmm15, r12				; p2 vector - y
+	vbroadcastss xmm14, xmm14			; p1 vector
+	vbroadcastss xmm15, xmm15			; p2 vector
+	movaps xmm13, [helper_v]
+	vaddps xmm14, xmm14, xmm13
+	xor rax, rax
+	xor rbx, rbx
+	mov eax, [r8 + r14 + 8]		; cube.walls[r14][0]
+	mov ebx, [r8 + r14 + 12]		; cube.walls[r14][1]
+	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
+
+	vsubps xmm14, xmm14, xmm0	; p1 - u1
+	vsubps xmm15, xmm15, xmm1	; p2 - u2
+	vsubps xmm2, xmm2, xmm0		; v1 - u1
+	vsubps xmm3, xmm3, xmm1		; v2 - u2
+	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vxorps xmm9, xmm9, xmm9
+	vcmple_osps xmm9, xmm14, xmm9
+	vandps xmm8, xmm9
+
+	vcvtsi2ss xmm14, r13				; p1 vector - x
+	vcvtsi2ss xmm15, r12				; p2 vector - y
+	vbroadcastss xmm14, xmm14			; p1 vector
+	vbroadcastss xmm15, xmm15			; p2 vector
+	movaps xmm13, [helper_v]
+	vaddps xmm14, xmm14, xmm13
+	xor rax, rax
+	xor rbx, rbx
+	mov eax, [r8 + r14 + 12]		; cube.walls[r14][0]
+	mov ebx, [r8 + r14 + 0]		; cube.walls[r14][1]
+	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
+
+	vsubps xmm14, xmm14, xmm0	; p1 - u1
+	vsubps xmm15, xmm15, xmm1	; p2 - u2
+	vsubps xmm2, xmm2, xmm0		; v1 - u1
+	vsubps xmm3, xmm3, xmm1		; v2 - u2
+	vmulps xmm14, xmm14, xmm3	; (p1-u1) - (v2-u2)
+	vmulps xmm15, xmm15, xmm2	; (p2-u2) - (v1-u1)
+	vsubps xmm14, xmm14, xmm15	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vxorps xmm9, xmm9, xmm9
+	vcmple_osps xmm9, xmm14, xmm9
+	vandps xmm8, xmm9
+
+
+
+
 
 
 	mov rbx, r12
@@ -251,16 +326,12 @@ rasterize:
 	add rbx, rax                ; y+=x
 	lea rbx, [rbx*4]            ; y*=4
 
-;    cmp rbx, bitmap_size          ; check boundaries to prevent segfaults
-;    jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
-;    cmp rbx, 0
-;    jl  .skip_pixel_draw
-
-	vmovaps [r9+rbx], xmm9
-
+    cmp rbx, bitmap_size          ; check boundaries to prevent segfaults
+    jge .skip_pixel_draw        ; todo add bitmap size as define here instead of size hardcode
+    cmp rbx, 0
+    jl  .skip_pixel_draw
+	vmovaps [r9+rbx], xmm8
 	.skip_pixel_draw:
-
-	.flag:
 
 	cmp r13, 0
 	jne .bitmap_loop_y
@@ -331,7 +402,7 @@ draw_lines:
     cmp rbx, 0
     jl  .skip_pixel_draw
 
-	mov [r9+rbx], DWORD 0xffffffff
+	mov [r9+rbx], DWORD 0xff0000ff
 
     .skip_pixel_draw:
 
