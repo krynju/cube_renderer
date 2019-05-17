@@ -3,7 +3,7 @@ matrix:             dd  1.0, 0, 0, 0,       \
                         0, 1.0, 0, 0,       \
                         0, 0, 1.0, -200.0,  \
                         0, 0, 0, 1.0
-helper_v:			dd 0, 1.0, 2.0, 3.0
+helper_v:			dd 0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0
 
 distance:           dd  -100.0
 half_size:          dd  256.0
@@ -195,8 +195,8 @@ rasterize:
 	add r8, 248
 	mov r9, rdx 	; load bitmap addr
 
-	vxorps xmm7, xmm7, xmm7 ; zero vector for comparisons
-	movaps xmm12, [helper_v] ; [0, 1, 2, 3] helper vector
+	vxorps ymm7, ymm7, ymm7 ; zero vector for comparisons
+	vmovaps ymm12, [helper_v] ; [0, 1, 2, 3] helper vector
 
 	; ----------------------------------
 	mov r14, 0
@@ -211,88 +211,88 @@ rasterize:
 	; load pixel data
 	vcvtsi2ss xmm4, r13			; p1 vector - x
 	vcvtsi2ss xmm5, r12			; p2 vector - y
-	vbroadcastss xmm4, xmm4		; p1 vector
-	vbroadcastss xmm5, xmm5		; p2 vector
+	vbroadcastss ymm4, xmm4		; p1 vector
+	vbroadcastss ymm5, xmm5		; p2 vector
 
-	vaddps xmm4, xmm4, xmm12
+	vaddps ymm4, ymm4, ymm12
 
 	; 1. load wall element
 	mov eax, [r8 + r14 + 0]	; cube.walls[r14][0]
 	mov ebx, [r8 + r14 + 4]	; cube.walls[r14][1]
-	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
-	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
-	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
-	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
+	vbroadcastss ymm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss ymm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss ymm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss ymm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 	; 1. calculate cross product
-	vsubps xmm2, xmm2, xmm0	; v1 - u1
-	vsubps xmm3, xmm3, xmm1	; v2 - u2
-	vsubps xmm0, xmm4, xmm0	; p1 - u1
-	vsubps xmm1, xmm5, xmm1	; p2 - u2
-	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vsubps ymm2, ymm2, ymm0	; v1 - u1
+	vsubps ymm3, ymm3, ymm1	; v2 - u2
+	vsubps ymm0, ymm4, ymm0	; p1 - u1
+	vsubps ymm1, ymm5, ymm1	; p2 - u2
+	vmulps ymm0, ymm0, ymm3	; (p1-u1) - (v2-u2)
+	vmulps ymm1, ymm1, ymm2	; (p2-u2) - (v1-u1)
+	vsubps ymm0, ymm0, ymm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 	; 1. retrieve mask
-	vcmple_osps xmm1, xmm0, xmm7
-	movaps xmm8, xmm1	; ASSIGN HERE
+	vcmple_osps ymm1, ymm0, ymm7
+	vmovaps ymm8, ymm1	; ASSIGN HERE
 
 	; 2. load wall element
 	mov eax, [r8 + r14 + 4]	; cube.walls[r14][1]
 	mov ebx, [r8 + r14 + 8]	; cube.walls[r14][2]
-	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
-	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
-	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
-	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
+	vbroadcastss ymm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss ymm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss ymm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss ymm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 	; 2. calculate cross product
-	vsubps xmm2, xmm2, xmm0	; v1 - u1
-	vsubps xmm3, xmm3, xmm1	; v2 - u2
-	vsubps xmm0, xmm4, xmm0	; p1 - u1
-	vsubps xmm1, xmm5, xmm1	; p2 - u2
-	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vsubps ymm2, ymm2, ymm0	; v1 - u1
+	vsubps ymm3, ymm3, ymm1	; v2 - u2
+	vsubps ymm0, ymm4, ymm0	; p1 - u1
+	vsubps ymm1, ymm5, ymm1	; p2 - u2
+	vmulps ymm0, ymm0, ymm3	; (p1-u1) - (v2-u2)
+	vmulps ymm1, ymm1, ymm2	; (p2-u2) - (v1-u1)
+	vsubps ymm0, ymm0, ymm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 	; 2. retrieve mask
-	vcmple_osps xmm1, xmm0, xmm7
-	vandps xmm8, xmm1	; AND HERE
+	vcmple_osps ymm1, ymm0, ymm7
+	vandps ymm8, ymm1	; AND HERE
 
 
 	; 3. load wall element
 	mov eax, [r8 + r14 + 8]	; cube.walls[r14][1]
 	mov ebx, [r8 + r14 + 12]	; cube.walls[r14][2]
-	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
-	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
-	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
-	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
+	vbroadcastss ymm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss ymm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss ymm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss ymm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 	; 3. calculate cross product
-	vsubps xmm2, xmm2, xmm0	; v1 - u1
-	vsubps xmm3, xmm3, xmm1	; v2 - u2
-	vsubps xmm0, xmm4, xmm0	; p1 - u1
-	vsubps xmm1, xmm5, xmm1	; p2 - u2
-	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vsubps ymm2, ymm2, ymm0	; v1 - u1
+	vsubps ymm3, ymm3, ymm1	; v2 - u2
+	vsubps ymm0, ymm4, ymm0	; p1 - u1
+	vsubps ymm1, ymm5, ymm1	; p2 - u2
+	vmulps ymm0, ymm0, ymm3	; (p1-u1) - (v2-u2)
+	vmulps ymm1, ymm1, ymm2	; (p2-u2) - (v1-u1)
+	vsubps ymm0, ymm0, ymm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 	; 3. retrieve mask
-	vcmple_osps xmm1, xmm0, xmm7
-	vandps xmm8, xmm1	; AND HERE
+	vcmple_osps ymm1, ymm0, ymm7
+	vandps ymm8, ymm1	; AND HERE
 
 
 	; 4. load wall element
 	mov eax, [r8 + r14 + 12]	; cube.walls[r14][1]
 	mov ebx, [r8 + r14 + 0]	; cube.walls[r14][2]
-	vbroadcastss xmm0, DWORD [projected_points + 8 * rax + 0]	; u1
-	vbroadcastss xmm1, DWORD [projected_points + 8 * rax + 4]	; u2
-	vbroadcastss xmm2, DWORD [projected_points + 8 * rbx + 0]	; v1
-	vbroadcastss xmm3, DWORD [projected_points + 8 * rbx + 4]	; v2
+	vbroadcastss ymm0, DWORD [projected_points + 8 * rax + 0]	; u1
+	vbroadcastss ymm1, DWORD [projected_points + 8 * rax + 4]	; u2
+	vbroadcastss ymm2, DWORD [projected_points + 8 * rbx + 0]	; v1
+	vbroadcastss ymm3, DWORD [projected_points + 8 * rbx + 4]	; v2
 	; 4. calculate cross product
-	vsubps xmm2, xmm2, xmm0	; v1 - u1
-	vsubps xmm3, xmm3, xmm1	; v2 - u2
-	vsubps xmm0, xmm4, xmm0	; p1 - u1
-	vsubps xmm1, xmm5, xmm1	; p2 - u2
-	vmulps xmm0, xmm0, xmm3	; (p1-u1) - (v2-u2)
-	vmulps xmm1, xmm1, xmm2	; (p2-u2) - (v1-u1)
-	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
+	vsubps ymm2, ymm2, ymm0	; v1 - u1
+	vsubps ymm3, ymm3, ymm1	; v2 - u2
+	vsubps ymm0, ymm4, ymm0	; p1 - u1
+	vsubps ymm1, ymm5, ymm1	; p2 - u2
+	vmulps ymm0, ymm0, ymm3	; (p1-u1) - (v2-u2)
+	vmulps ymm1, ymm1, ymm2	; (p2-u2) - (v1-u1)
+	vsubps ymm0, ymm0, ymm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 	; 4. retrieve mask
-	vcmple_osps xmm1, xmm0, xmm7
-	vandps xmm8, xmm1	; AND HERE
+	vcmple_osps ymm1, ymm0, ymm7
+	vandps ymm8, ymm1	; AND HERE
 
 
 
@@ -308,14 +308,14 @@ rasterize:
     cmp rbx, 0
     jl  .skip_pixel_draw
 
-	vmovaps xmm9, [r9 + rbx]
-	vorps	xmm8, xmm9
-	vmovaps [r9 + rbx], xmm8
+	vmovaps ymm9, [r9 + rbx]
+	vorps	ymm8, ymm9
+	vmovaps [r9 + rbx], ymm8
 
 	.skip_pixel_draw:
 	; ------------------------
 
-	add r13, 4
+	add r13, 8
 	cmp r13, 512
 	jne .bitmap_loop_y
 

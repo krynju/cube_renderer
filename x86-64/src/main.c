@@ -21,7 +21,7 @@ void calculate_new_frame();
 
 volatile unsigned short int key_table[12] = {0};
 
-unsigned int __attribute__ ((aligned (16))) output[BMP_SIZE] ;
+unsigned int output[BMP_SIZE] ;
 
 struct Cube cube = {
     .vertices =
