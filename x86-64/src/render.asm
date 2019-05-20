@@ -10,7 +10,8 @@ distance:           dd  -100.0
 half_size:          dd  256.0
 float1:             dd 	1.0
 bitmap_size:		dq	1048576
-
+colors:             dd 0xFFe6194B, 0xFFf58231, 0xFFffe119, 0xFFbfef45, 0xff3cb44b, 0xff42d4f4
+					align 32
 
 
 section .bss
@@ -200,8 +201,11 @@ rasterize:
 	vmovaps ymm12, [helper_v] ; [0, 1, 2, 3] helper vector
 
 	; ----------------------------------
-	mov r14, 0
+	mov r15, 0 ; color offset
+	mov r14, 0 ; wall offset
+
 	.wall_loop:
+	vbroadcastss ymm10, DWORD [colors + r15] ; color for the wall
 
 	mov r12, 0
 	.bitmap_loop_x:
@@ -309,9 +313,12 @@ rasterize:
     cmp rbx, 0
     jl  .skip_pixel_draw
 
-	vmovaps ymm9, [r9 + rbx]
-	vorps	ymm8, ymm9
-	vmovaps [r9 + rbx], ymm8
+;	vmovaps ymm9, [r9 + rbx] ; load actual pixels
+;	vorps	ymm8, ymm9	; generate mask
+;	vmovaps [r9 + rbx], ymm8 ; load new pixels with applied mask
+
+	vpmaskmovd [r9 + rbx], ymm8, ymm10 ; conditional load, ymm8 mask, ymm10 color
+
 
 	.skip_pixel_draw:
 	; ------------------------
@@ -324,6 +331,7 @@ rasterize:
 	cmp r12, 512
 	jne .bitmap_loop_x
 
+	add r15, 4
 	add r14, 16
     cmp r14, 96
     jne .wall_loop
@@ -385,7 +393,7 @@ draw_lines:
     cmp rbx, 0
     jl  .skip_pixel_draw
 
-	mov [r9+rbx], DWORD 0xff0000ff
+	mov [r9+rbx], DWORD 0xffffffff
 
     .skip_pixel_draw:
 
