@@ -10,7 +10,8 @@ distance:           dd  -100.0
 half_size:          dd  256.0
 float1:             dd 	1.0
 bitmap_size:		dq	1048576
-
+colors:             dd 0xFFe6194B, 0xFFf58231, 0xFFffe119, 0xFFbfef45, 0xff3cb44b, 0xff42d4f4
+					align 32
 
 
 section .bss
@@ -200,8 +201,10 @@ rasterize:
 	vmovaps xmm12, [helper_v] ; [0, 1, 2, 3] helper vector
 
 	; ----------------------------------
-	mov r14, 0
+	mov r15, 0 ; color offset
+	mov r14, 0 ; wall offset
 	.wall_loop:
+	vbroadcastss xmm10, DWORD [colors + r15] ; color for the wall
 
 	mov r12, 0
 	.bitmap_loop_x:
@@ -304,14 +307,17 @@ rasterize:
 	add rbx, r13                ; y+=x
 	lea rbx, [rbx*4]            ; y*=4
 
-    cmp rbx, bitmap_size
+    cmp rbx, bitmap_size - 32
     jge .skip_pixel_draw
     cmp rbx, 0
     jl  .skip_pixel_draw
 
-	vmovaps xmm9, [r9 + rbx]
-	vorps	xmm8, xmm9
-	vmovaps [r9 + rbx], xmm8
+;	vmovaps xmm9, [r9 + rbx] ; load actual pixels
+;	vorps	xmm8, xmm9	; generate mask
+;	vmovaps [r9 + rbx], xmm8 ; load new pixels with applied mask
+
+	vpmaskmovd [r9 + rbx], xmm8, xmm10 ; conditional load, xmm8 mask, xmm10 color
+
 
 	.skip_pixel_draw:
 	; ------------------------
@@ -324,81 +330,82 @@ rasterize:
 	cmp r12, 512
 	jne .bitmap_loop_x
 
+	add r15, 4
 	add r14, 16
     cmp r14, 96
     jne .wall_loop
 
-draw_lines:
-    mov r8, rcx		; load cube struct address
-    add r8, 152		; add offset for
-    mov r9, rdx		; load bitmap address
-    movss xmm6, [float1]	; load float 1.0 into a register for fast incrementing
-
-    mov r14, 96             ; load connections size for offsetting
-    .outer_loop:
-    sub r14, 8              ; decrement the connections offset
-
-    xor rax, rax
-    xor rbx, rbx
-
-    mov eax, DWORD[r8+r14]              ; load index of source vertex
-    mov ebx, DWORD[r8+r14+4]            ; load index of destination vertex
-
-    movss xmm0, [projected_points+8*rax]        ; load source vertex projected x cord
-    movss xmm1, [projected_points+8*rax+4]      ; load source vertex projected y cord
-    movss xmm2, [projected_points+8*rbx]        ; load destination vertex projected x cord
-    movss xmm3, [projected_points+8*rbx+4]      ; load destination vertex projected y cord
-
-    subss xmm2, xmm0                ; dx = x_d - x_s
-    subss xmm3, xmm1                ; dy = y_d - y_1
-
-    movss xmm4, xmm2                ; move dx to new register
-    movss xmm5, xmm3                ; move dy to new register
-
-    pslld  xmm4, 1                  ; abs(dx)
-    psrld  xmm4, 1
-
-    pslld  xmm5, 1                  ; abs(dy)
-    psrld  xmm5, 1
-
-    comiss xmm4, xmm5               ; pick the larger absolute value delta, step = max(abs(dx),abs(dy))
-    ja .skip                        ; step = abs(dx)
-    movss xmm4, xmm5                ; step = abs(dy)
-    .skip:
-
-    divss xmm2, xmm4                ; x_inc = dx/step
-    divss xmm3, xmm4                ; y_inc = dy/step
-
-    xorps xmm5, xmm5                ; zero       xmm5
-
-
-	.inner_loop:
-    cvtss2si eax, xmm0          ; convert x float to int32
-    cvtss2si ebx, xmm1          ; convert y float to int32
-
-    shl rbx, 9                  ; y*=512
-    add rbx, rax                ; y+=x
-    lea rbx, [rbx*4]            ; y*=4
-
-    cmp rbx, bitmap_size        ; check boundaries to prevent segfaults
-    jge .skip_pixel_draw
-    cmp rbx, 0
-    jl  .skip_pixel_draw
-
-	mov [r9+rbx], DWORD 0xffffffff
-
-    .skip_pixel_draw:
-
-    addss xmm0, xmm2            ; x += x_inc
-    addss xmm1, xmm3            ; y += y_inc
-
-    addss xmm5, xmm6            ; x += 1.0
-    comiss xmm5, xmm4           ; check if less than step
-    jb .inner_loop
-
-
-    cmp r14,0                   ; check if all connections were drawn
-    jne .outer_loop
+;draw_lines:
+;    mov r8, rcx		; load cube struct address
+;    add r8, 152		; add offset for
+;    mov r9, rdx		; load bitmap address
+;    movss xmm6, [float1]	; load float 1.0 into a register for fast incrementing
+;
+;    mov r14, 96             ; load connections size for offsetting
+;    .outer_loop:
+;    sub r14, 8              ; decrement the connections offset
+;
+;    xor rax, rax
+;    xor rbx, rbx
+;
+;    mov eax, DWORD[r8+r14]              ; load index of source vertex
+;    mov ebx, DWORD[r8+r14+4]            ; load index of destination vertex
+;
+;    movss xmm0, [projected_points+8*rax]        ; load source vertex projected x cord
+;    movss xmm1, [projected_points+8*rax+4]      ; load source vertex projected y cord
+;    movss xmm2, [projected_points+8*rbx]        ; load destination vertex projected x cord
+;    movss xmm3, [projected_points+8*rbx+4]      ; load destination vertex projected y cord
+;
+;    subss xmm2, xmm0                ; dx = x_d - x_s
+;    subss xmm3, xmm1                ; dy = y_d - y_1
+;
+;    movss xmm4, xmm2                ; move dx to new register
+;    movss xmm5, xmm3                ; move dy to new register
+;
+;    pslld  xmm4, 1                  ; abs(dx)
+;    psrld  xmm4, 1
+;
+;    pslld  xmm5, 1                  ; abs(dy)
+;    psrld  xmm5, 1
+;
+;    comiss xmm4, xmm5               ; pick the larger absolute value delta, step = max(abs(dx),abs(dy))
+;    ja .skip                        ; step = abs(dx)
+;    movss xmm4, xmm5                ; step = abs(dy)
+;    .skip:
+;
+;    divss xmm2, xmm4                ; x_inc = dx/step
+;    divss xmm3, xmm4                ; y_inc = dy/step
+;
+;    xorps xmm5, xmm5                ; zero       xmm5
+;
+;
+;	.inner_loop:
+;    cvtss2si eax, xmm0          ; convert x float to int32
+;    cvtss2si ebx, xmm1          ; convert y float to int32
+;
+;    shl rbx, 9                  ; y*=512
+;    add rbx, rax                ; y+=x
+;    lea rbx, [rbx*4]            ; y*=4
+;
+;    cmp rbx, bitmap_size        ; check boundaries to prevent segfaults
+;    jge .skip_pixel_draw
+;    cmp rbx, 0
+;    jl  .skip_pixel_draw
+;
+;	mov [r9+rbx], DWORD 0xffffffff
+;
+;    .skip_pixel_draw:
+;
+;    addss xmm0, xmm2            ; x += x_inc
+;    addss xmm1, xmm3            ; y += y_inc
+;
+;    addss xmm5, xmm6            ; x += 1.0
+;    comiss xmm5, xmm4           ; check if less than step
+;    jb .inner_loop
+;
+;
+;    cmp r14,0                   ; check if all connections were drawn
+;    jne .outer_loop
 
 epilogue:
 	pop	rbx
