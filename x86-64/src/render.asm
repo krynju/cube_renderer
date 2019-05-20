@@ -4,6 +4,7 @@ matrix:             dd  1.0, 0, 0, 0,       \
                         0, 0, 1.0, -200.0,  \
                         0, 0, 0, 1.0
 helper_v:			dd 0, 1.0, 2.0, 3.0
+					align 16
 
 distance:           dd  -100.0
 half_size:          dd  256.0
@@ -196,7 +197,7 @@ rasterize:
 	mov r9, rdx 	; load bitmap addr
 
 	vxorps xmm7, xmm7, xmm7 ; zero vector for comparisons
-	movaps xmm12, [helper_v] ; [0, 1, 2, 3] helper vector
+	vmovaps xmm12, [helper_v] ; [0, 1, 2, 3] helper vector
 
 	; ----------------------------------
 	mov r14, 0
@@ -233,7 +234,7 @@ rasterize:
 	vsubps xmm0, xmm0, xmm1	; (p1-u1) - (v2-u2) - (p2-u2) - (v1-u1)
 	; 1. retrieve mask
 	vcmple_osps xmm1, xmm0, xmm7
-	movaps xmm8, xmm1	; ASSIGN HERE
+	vmovaps xmm8, xmm1	; ASSIGN HERE
 
 	; 2. load wall element
 	mov eax, [r8 + r14 + 4]	; cube.walls[r14][1]
@@ -384,7 +385,7 @@ draw_lines:
     cmp rbx, 0
     jl  .skip_pixel_draw
 
-	mov [r9+rbx], DWORD 0xff0000ff
+	mov [r9+rbx], DWORD 0xffffffff
 
     .skip_pixel_draw:
 
